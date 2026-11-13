@@ -1,0 +1,50 @@
+# Miscellaneous
+*.hprof
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom
+.buildlog/
+.history
+.svn/
+migrate.cfg
+
+# IntelliJ Related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains editor settings and recommended extensions for this workspace.
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.flutter-plugins
+**/ios/Flutter/.flutter-plugins-dependencies
+**/ios/Flutter/GeneratedPluginRegistrant.h
+**/ios/Flutter/GeneratedPluginRegistrant.m
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/flutter_settings.properties
+**/ios/derived_sdk_data/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Android related
+**/android/local.properties
+**/android/key.properties
+**/android/app/local.properties
+**/android/app/key.properties
+*.apk
+*.ap_
+*.aab
+
+# Environment variables
+.env

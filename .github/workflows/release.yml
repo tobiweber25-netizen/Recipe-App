@@ -1,0 +1,77 @@
+name: Build & Release OTA Update
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.1)'
+        required: true
+        default: 'v1.0.1'
+      release_title:
+        description: 'Release Title'
+        required: false
+        default: 'Wireless Update'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Create .env from Secrets
+        run: |
+          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
+            echo "GEMINI_MODEL=gemini-2.5-flash" >> .env
+          else
+            touch .env
+          fi
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Find and Stage Release APK
+        run: |
+          mkdir -p release-artifacts
+          APK_PATH=$(find build/app/outputs -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: Release APK not found!"
+            exit 1
+          fi
+          echo "Found APK at: $APK_PATH"
+          cp "$APK_PATH" release-artifacts/recipe-app-release.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: ${{ github.event.inputs.release_title || github.ref_name }}
+          files: release-artifacts/recipe-app-release.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
