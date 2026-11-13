@@ -1,4 +1,6 @@
 # Miscellaneous
+.gradle/
+**/.gradle/
 *.hprof
 *.class
 *.log
