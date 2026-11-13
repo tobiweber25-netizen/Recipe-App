@@ -38,6 +38,7 @@ migrate.cfg
 .pub-cache/
 .pub/
 /build/
+android/build/
 
 # Android related
 **/android/local.properties
@@ -47,6 +48,8 @@ migrate.cfg
 *.apk
 *.ap_
 *.aab
+*.db
+apk/*.db
 
 # Environment variables
 .env
