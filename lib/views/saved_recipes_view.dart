@@ -37,7 +37,7 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
       return 'Saved Today • $dateStr';
     } else if (diffDays == 1) {
       return 'Saved Yesterday • $dateStr';
-    } else if (diffDays < 7) {
+    } else if (diffDays > 1 && diffDays < 7) {
       return 'Saved This Week • $dateStr';
     } else {
       return 'Batch from $dateStr';
@@ -84,12 +84,10 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
         actions: [
           IconButton(
             icon: Icon(
-              context.watch<MealPackProvider>().themeMode == ThemeMode.light
-                  ? Icons.dark_mode_outlined
-                  : Icons.light_mode_outlined,
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
             onPressed: () {
-              context.read<MealPackProvider>().toggleThemeMode();
+              context.read<MealPackProvider>().toggleThemeMode(currentlyDark: isDark);
             },
             tooltip: 'Toggle Theme',
           ),
@@ -148,7 +146,9 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
             return r.title.toLowerCase().contains(q) ||
                 r.description.toLowerCase().contains(q) ||
                 r.category.toLowerCase().contains(q) ||
-                r.budgetTier.toLowerCase().contains(q);
+                r.cuisine.toLowerCase().contains(q) ||
+                r.budgetTier.toLowerCase().contains(q) ||
+                r.recipeSpecificIngredients.any((i) => i.name.toLowerCase().contains(q));
           }).toList();
 
           final grouped = _groupRecipes(filtered);

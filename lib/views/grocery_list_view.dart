@@ -21,9 +21,9 @@ class GroceryListView extends StatelessWidget {
           totalItems++;
           final checked = item.isChecked ? '[x]' : '[ ]';
           final qty = item.quantity > 0
-              ? '${item.quantity.toStringAsFixed(item.quantity.truncateToDouble() == item.quantity ? 0 : 1)} ${item.unit}'
+              ? '${item.quantity.toStringAsFixed(item.quantity.truncateToDouble() == item.quantity ? 0 : 1)} ${item.unit}'.trim()
               : '';
-          sb.writeln('$checked ${item.name} ($qty)');
+          sb.writeln(qty.isNotEmpty ? '$checked ${item.name} ($qty)' : '$checked ${item.name}');
         }
       }
     });
@@ -88,12 +88,10 @@ class GroceryListView extends StatelessWidget {
           ),
           IconButton(
             icon: Icon(
-              context.watch<MealPackProvider>().themeMode == ThemeMode.light
-                  ? Icons.dark_mode_outlined
-                  : Icons.light_mode_outlined,
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
             onPressed: () {
-              context.read<MealPackProvider>().toggleThemeMode();
+              context.read<MealPackProvider>().toggleThemeMode(currentlyDark: isDark);
             },
             tooltip: 'Toggle Theme',
           ),
@@ -336,7 +334,7 @@ class GroceryListView extends StatelessWidget {
                           ...items.map((ing) {
                             final isChecked = ing.isChecked;
                             final isInPantry = provider.pantryItems.any(
-                              (p) => ing.name.toLowerCase().contains(p),
+                              (p) => ing.name.toLowerCase().contains(p.toLowerCase()),
                             );
                             final qtyStr = ing.quantity > 0
                                 ? '${ing.quantity.toStringAsFixed(ing.quantity.truncateToDouble() == ing.quantity ? 0 : 1)} ${ing.unit}'

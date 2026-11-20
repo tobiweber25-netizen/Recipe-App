@@ -46,10 +46,69 @@ class Recipe {
       'cook_time_minutes': cookTimeMinutes,
       'servings': servings,
       'category': category,
+      'cuisine': cuisine,
+      'is_adventurous': isAdventurous ? 1 : 0,
       'budget_tier': budgetTier,
       'chef_tip': chefTip,
       'instructions': instructions.join('\n'),
     };
+  }
+
+  Map<String, dynamic> toJsonMap() {
+    return {
+      'title': title,
+      'description': description,
+      'is_saved': isSaved,
+      'saved_at': savedAt?.toIso8601String(),
+      'cook_time_minutes': cookTimeMinutes,
+      'servings': servings,
+      'category': category,
+      'cuisine': cuisine,
+      'is_adventurous': isAdventurous,
+      'budget_tier': budgetTier,
+      'chef_tip': chefTip,
+      'instructions': instructions,
+      'ingredients': recipeSpecificIngredients
+          .map((i) => {
+                'name': i.name,
+                'quantity': i.quantity,
+                'unit': i.unit,
+                'type': i.type,
+              })
+          .toList(),
+    };
+  }
+
+  factory Recipe.fromJsonMap(Map<String, dynamic> map, {DateTime? savedAtOverride}) {
+    final rawIngredients = (map['ingredients'] as List<dynamic>?) ?? const [];
+    final ingredients = rawIngredients.whereType<Map<String, dynamic>>().map((i) {
+      return Ingredient(
+        name: i['name'] as String? ?? '',
+        quantity: (i['quantity'] as num?)?.toDouble() ?? 1.0,
+        unit: i['unit'] as String? ?? 'item',
+        type: i['type'] as String? ?? 'recipe_specific',
+      );
+    }).toList();
+
+    return Recipe(
+      title: map['title'] as String? ?? '',
+      description: map['description'] as String? ?? '',
+      isSaved: true,
+      savedAt: savedAtOverride ??
+          (map['saved_at'] != null ? DateTime.tryParse(map['saved_at'] as String) : null),
+      cookTimeMinutes: (map['cook_time_minutes'] as num?)?.toInt() ?? 25,
+      servings: (map['servings'] as num?)?.toInt() ?? 2,
+      category: map['category'] as String? ?? 'Main Dish',
+      cuisine: map['cuisine'] as String? ?? (map['category'] as String? ?? 'Main Dish'),
+      isAdventurous: map['is_adventurous'] == true || map['is_adventurous'] == 1,
+      budgetTier: map['budget_tier'] as String? ?? 'Standard',
+      chefTip: map['chef_tip'] as String? ?? '',
+      instructions: ((map['instructions'] as List<dynamic>?) ?? const [])
+          .map((e) => e.toString())
+          .where((s) => s.trim().isNotEmpty)
+          .toList(),
+      recipeSpecificIngredients: ingredients,
+    );
   }
 
   factory Recipe.fromMap(Map<String, dynamic> map, List<Ingredient> ingredients) {

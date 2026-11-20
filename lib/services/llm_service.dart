@@ -12,9 +12,15 @@ class LlmService {
   static final LlmService instance = LlmService._init();
   LlmService._init();
 
+  String? _readEnv(String key) {
+    if (!dotenv.isInitialized) return null;
+    final val = dotenv.env[key]?.trim();
+    return (val == null || val.isEmpty) ? null : val;
+  }
+
   Future<MealPack> generateMealPackSkeleton(SeasonalContext ctx, List<String> pantryItems, GenerateOptions options) async {
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty || apiKey == 'your_gemini_api_key_here') {
+    final apiKey = _readEnv('GEMINI_API_KEY');
+    if (apiKey == null || apiKey == 'your_gemini_api_key_here') {
       throw Exception('GEMINI_API_KEY not configured. Please add your key to the .env file.');
     }
 
@@ -50,7 +56,7 @@ class LlmService {
     );
 
     final model = GenerativeModel(
-      model: dotenv.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash', 
+      model: _readEnv('GEMINI_MODEL') ?? 'gemini-2.5-flash',
       apiKey: apiKey, 
       generationConfig: GenerationConfig(
         responseMimeType: 'application/json',
@@ -147,8 +153,10 @@ $cDir
   }
 
   Future<Recipe> generateRecipeDetails(Recipe skeleton, MealPack contextPack) async {
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) throw Exception('GEMINI_API_KEY not configured in .env.');
+    final apiKey = _readEnv('GEMINI_API_KEY');
+    if (apiKey == null || apiKey == 'your_gemini_api_key_here') {
+      throw Exception('GEMINI_API_KEY not configured in .env.');
+    }
 
     final ingredientSchema = Schema.object(
       properties: {
@@ -171,7 +179,7 @@ $cDir
     );
 
     final model = GenerativeModel(
-      model: dotenv.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash', 
+      model: _readEnv('GEMINI_MODEL') ?? 'gemini-2.5-flash',
       apiKey: apiKey, 
       generationConfig: GenerationConfig(
         responseMimeType: 'application/json',

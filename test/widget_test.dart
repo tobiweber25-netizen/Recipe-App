@@ -606,6 +606,94 @@ void main() {
       expect(scaled.unit, 'g');
     });
   });
+
+  group('Deep-Debug Regression Tests', () {
+    test('Recipe.toMap and JSON serialization persist cuisine and isAdventurous', () {
+      final recipe = Recipe(
+        id: 7,
+        mealPackId: 2,
+        title: 'Spicy Dakdoritang',
+        cuisine: 'Korean',
+        isAdventurous: true,
+        category: 'Stew',
+        instructions: ['Braise chicken with gochujang'],
+        recipeSpecificIngredients: [
+          Ingredient(name: 'Chicken Thighs', quantity: 500, unit: 'g', type: 'recipe_specific', recipeId: 7),
+        ],
+      );
+
+      final map = recipe.toMap();
+      expect(map['cuisine'], 'Korean');
+      expect(map['is_adventurous'], 1);
+
+      final fromDb = Recipe.fromMap(map, recipe.recipeSpecificIngredients);
+      expect(fromDb.cuisine, 'Korean');
+      expect(fromDb.isAdventurous, isTrue);
+
+      final fromJson = Recipe.fromJsonMap(recipe.toJsonMap());
+      expect(fromJson.title, 'Spicy Dakdoritang');
+      expect(fromJson.cuisine, 'Korean');
+      expect(fromJson.isAdventurous, isTrue);
+      expect(fromJson.recipeSpecificIngredients.length, 1);
+    });
+
+    test('MealPackGenerator.isVegetarian excludes duck, cod, guanciale/pancetta, and ham', () {
+      final nonVegTitles = [
+        'Bacalhau à Brás',
+        'Puerto Rican Arroz con Gandules',
+        'Spaghetti alla Carbonara Autentica',
+        'Magret de Canard au Poivre et Mûres',
+      ];
+      for (final title in nonVegTitles) {
+        final recipe = CuratedRecipeLibrary.recipes.firstWhere((r) => r.title == title);
+        expect(MealPackGenerator.isVegetarian(recipe), isFalse, reason: '$title contains meat/seafood');
+      }
+    });
+
+    test('MealPackProvider.toggleThemeMode toggles from system on first tap', () {
+      final provider = MealPackProvider();
+      expect(provider.themeMode, ThemeMode.system);
+      provider.toggleThemeMode(currentlyDark: false);
+      expect(provider.themeMode, ThemeMode.dark);
+      provider.toggleThemeMode(currentlyDark: true);
+      expect(provider.themeMode, ThemeMode.light);
+    });
+
+    testWidgets('MealPackView handles non-standard servings and empty instructions error state safely', (WidgetTester tester) async {
+      final skeleton = Recipe(
+        id: 50,
+        title: 'Custom Trio Stew',
+        servings: 3, // Outside {2, 4, 6}
+        instructions: const [],
+        recipeSpecificIngredients: const [],
+      );
+      final provider = MealPackProvider();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [ChangeNotifierProvider.value(value: provider)],
+          child: MaterialApp(home: MealPackView(recipe: skeleton)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could Not Load Recipe Steps'), findsOneWidget);
+      expect(find.text('Try Again'), findsOneWidget);
+    });
+
+    testWidgets('CookingModeView detects singular 1 minute timer', (WidgetTester tester) async {
+      final recipe = Recipe(
+        title: 'Quick Garlic Greens',
+        instructions: const ['Blanch greens for 1 minute then drain.'],
+        recipeSpecificIngredients: const [],
+      );
+
+      await tester.pumpWidget(MaterialApp(home: CookingModeView(recipe: recipe)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start 1 min Timer'), findsOneWidget);
+    });
+  });
 }
 
 

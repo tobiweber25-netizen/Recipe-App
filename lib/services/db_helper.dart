@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
@@ -11,6 +12,7 @@ class DbHelper {
 
   // In-memory fallback database for Web/testing
   final List<MealPack> _webInMemoryPacks = [];
+  final List<Recipe> _webSavedLibraryRecipes = [];
   int _webIdCounter = 1;
 
   DbHelper._init();
@@ -30,7 +32,7 @@ class DbHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
       onConfigure: _onConfigure,
@@ -62,6 +64,18 @@ class DbHelper {
       await db.execute('ALTER TABLE recipes ADD COLUMN budget_tier TEXT DEFAULT "Standard"');
       await db.execute('ALTER TABLE recipes ADD COLUMN chef_tip TEXT DEFAULT ""');
     }
+    if (oldVersion < 7) {
+      await db.execute('ALTER TABLE recipes ADD COLUMN cuisine TEXT');
+      await db.execute('ALTER TABLE recipes ADD COLUMN is_adventurous INTEGER NOT NULL DEFAULT 0');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS saved_library_recipes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL UNIQUE,
+          saved_at TEXT NOT NULL,
+          recipe_json TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   Future _onConfigure(Database db) async {
@@ -90,6 +104,8 @@ class DbHelper {
         cook_time_minutes INTEGER NOT NULL DEFAULT 25,
         servings INTEGER NOT NULL DEFAULT 2,
         category TEXT NOT NULL DEFAULT 'Main Dish',
+        cuisine TEXT,
+        is_adventurous INTEGER NOT NULL DEFAULT 0,
         budget_tier TEXT NOT NULL DEFAULT 'Standard',
         chef_tip TEXT,
         instructions TEXT NOT NULL,
@@ -116,6 +132,15 @@ class DbHelper {
       CREATE TABLE pantry_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE saved_library_recipes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL UNIQUE,
+        saved_at TEXT NOT NULL,
+        recipe_json TEXT NOT NULL
       )
     ''');
   }
@@ -249,7 +274,7 @@ class DbHelper {
     });
   }
 
-  Future<void> updateRecipeDetails(Recipe recipe) async {
+  Future<Recipe> updateRecipeDetails(Recipe recipe) async {
     if (kIsWeb) {
       // In-memory web update
       for (int i = 0; i < _webInMemoryPacks.length; i++) {
@@ -264,11 +289,11 @@ class DbHelper {
           break;
         }
       }
-      return;
+      return recipe;
     }
 
     final db = await database;
-    await db.transaction((txn) async {
+    return await db.transaction((txn) async {
       await txn.update(
         'recipes',
         {
@@ -281,14 +306,31 @@ class DbHelper {
         whereArgs: [recipe.id],
       );
 
+      // Replace existing ingredients for this recipe to avoid duplicates and hydrate IDs
+      await txn.delete('ingredients', where: 'recipe_id = ?', whereArgs: [recipe.id]);
+
       final ingredientBatch = txn.batch();
       for (var ing in recipe.recipeSpecificIngredients) {
-        final ingMap = ing.toMap();
+        final ingMap = ing.copyWith(id: null).toMap();
+        ingMap.remove('id');
         ingMap['meal_pack_id'] = recipe.mealPackId;
         ingMap['recipe_id'] = recipe.id;
         ingredientBatch.insert('ingredients', ingMap);
       }
-      await ingredientBatch.commit();
+      final ingIds = await ingredientBatch.commit();
+
+      final savedIngredients = <Ingredient>[];
+      for (int i = 0; i < recipe.recipeSpecificIngredients.length; i++) {
+        savedIngredients.add(
+          recipe.recipeSpecificIngredients[i].copyWith(
+            id: ingIds[i] as int,
+            mealPackId: recipe.mealPackId,
+            recipeId: recipe.id,
+          ),
+        );
+      }
+
+      return recipe.copyWith(recipeSpecificIngredients: savedIngredients);
     });
   }
 
@@ -488,14 +530,57 @@ class DbHelper {
     );
   }
 
+  Future<void> saveLibraryRecipe(Recipe recipe) async {
+    final now = DateTime.now();
+    final savedCopy = recipe.copyWith(isSaved: true, savedAt: now);
+    if (kIsWeb) {
+      _webSavedLibraryRecipes.removeWhere((r) => r.title == recipe.title);
+      _webSavedLibraryRecipes.insert(0, savedCopy);
+      return;
+    }
+
+    final db = await database;
+    await db.insert(
+      'saved_library_recipes',
+      {
+        'title': savedCopy.title,
+        'saved_at': now.toIso8601String(),
+        'recipe_json': jsonEncode(savedCopy.toJsonMap()),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteLibraryRecipe(String title) async {
+    if (kIsWeb) {
+      _webSavedLibraryRecipes.removeWhere((r) => r.title == title);
+      return;
+    }
+
+    final db = await database;
+    await db.delete(
+      'saved_library_recipes',
+      where: 'title = ?',
+      whereArgs: [title],
+    );
+  }
+
   Future<List<Recipe>> getSavedRecipes() async {
     if (kIsWeb) {
       final List<Recipe> saved = [];
+      final seenTitles = <String>{};
       for (var pack in _webInMemoryPacks) {
         for (var recipe in pack.recipes) {
           if (recipe.isSaved) {
             saved.add(recipe);
+            seenTitles.add(recipe.title);
           }
+        }
+      }
+      for (var libRecipe in _webSavedLibraryRecipes) {
+        if (!seenTitles.contains(libRecipe.title)) {
+          saved.add(libRecipe);
+          seenTitles.add(libRecipe.title);
         }
       }
       saved.sort((a, b) {
@@ -513,6 +598,7 @@ class DbHelper {
       orderBy: 'saved_at DESC',
     );
     final List<Recipe> saved = [];
+    final seenTitles = <String>{};
     for (var rMap in recipesMaps) {
       final recipeId = rMap['id'] as int;
       final ingredientsMaps = await db.query(
@@ -521,8 +607,36 @@ class DbHelper {
         whereArgs: [recipeId],
       );
       final List<Ingredient> ingredients = ingredientsMaps.map((m) => Ingredient.fromMap(m)).toList();
-      saved.add(Recipe.fromMap(rMap, ingredients));
+      final recipe = Recipe.fromMap(rMap, ingredients);
+      saved.add(recipe);
+      seenTitles.add(recipe.title);
     }
+
+    final libMaps = await db.query(
+      'saved_library_recipes',
+      orderBy: 'saved_at DESC',
+    );
+    for (var lMap in libMaps) {
+      try {
+        final rawJson = lMap['recipe_json'] as String?;
+        if (rawJson == null || rawJson.isEmpty) continue;
+        final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
+        final savedAt = lMap['saved_at'] != null ? DateTime.tryParse(lMap['saved_at'] as String) : null;
+        final recipe = Recipe.fromJsonMap(decoded, savedAtOverride: savedAt);
+        if (!seenTitles.contains(recipe.title)) {
+          saved.add(recipe);
+          seenTitles.add(recipe.title);
+        }
+      } catch (e) {
+        debugPrint('DbHelper: skipping malformed saved library recipe: $e');
+      }
+    }
+
+    saved.sort((a, b) {
+      final aDate = a.savedAt ?? DateTime(0);
+      final bDate = b.savedAt ?? DateTime(0);
+      return bDate.compareTo(aDate);
+    });
     return saved;
   }
 

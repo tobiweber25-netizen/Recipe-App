@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag (e.g. v1.0.1)'
+        description: 'Release Tag (e.g. v1.0.2)'
         required: true
-        default: 'v1.0.1'
+        default: 'v1.0.2'
       release_title:
-        description: 'Release Title'
+        description: 'Release Title (optional)'
         required: false
-        default: 'Wireless Update'
+        default: ''
 
 permissions:
   contents: write
@@ -25,6 +25,31 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Resolve Release Version
+        id: version
+        run: |
+          RAW_TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          CLEAN_VER="${RAW_TAG#v}"
+          CLEAN_VER="${CLEAN_VER#V}"
+          if ! [[ "$CLEAN_VER" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Error: Release tag '$RAW_TAG' must follow semver format vMAJOR.MINOR.PATCH (e.g. v1.0.2)"
+            exit 1
+          fi
+          MAJOR=$((10#${BASH_REMATCH[1]}))
+          MINOR=$((10#${BASH_REMATCH[2]}))
+          PATCH=$((10#${BASH_REMATCH[3]}))
+          if [ "$MINOR" -ge 100 ] || [ "$PATCH" -ge 100 ]; then
+            echo "Error: Minor and patch version segments must be < 100."
+            exit 1
+          fi
+          BUILD_NAME="${MAJOR}.${MINOR}.${PATCH}"
+          BUILD_NUMBER=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          RELEASE_TAG="v${BUILD_NAME}"
+          echo "Resolved release_tag=$RELEASE_TAG build_name=$BUILD_NAME build_number=$BUILD_NUMBER"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "build_name=$BUILD_NAME" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -44,34 +69,64 @@ jobs:
             echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
             echo "GEMINI_MODEL=gemini-2.5-flash" >> .env
           else
-            touch .env
+            echo "GEMINI_MODEL=gemini-2.5-flash" > .env
           fi
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build Release APK
-        run: flutter build apk --release --android-skip-build-dependency-validation
+      - name: Run Tests
+        run: flutter test
 
-      - name: Find and Stage Release APK
+      - name: Build Release APK
+        run: |
+          flutter build apk --release \
+            --build-name="${{ steps.version.outputs.build_name }}" \
+            --build-number="${{ steps.version.outputs.build_number }}" \
+            --android-skip-build-dependency-validation
+
+      - name: Verify and Stage Release APK
         run: |
           mkdir -p release-artifacts
-          APK_PATH=$(find build/app/outputs -name "*.apk" | head -n 1)
-          if [ -z "$APK_PATH" ]; then
+          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            APK_PATH=$(find build/app/outputs -name "*release*.apk" | head -n 1)
+          fi
+          if [ -z "$APK_PATH" ] || [ ! -f "$APK_PATH" ]; then
             echo "Error: Release APK not found!"
             exit 1
           fi
           echo "Found APK at: $APK_PATH"
+
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          BUILD_TOOLS_DIR=$(ls -d "$SDK_ROOT/build-tools"/* 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$BUILD_TOOLS_DIR" ]; then
+            echo "Error: Android build-tools not found under $SDK_ROOT"
+            exit 1
+          fi
+
+          BADGING=$("$BUILD_TOOLS_DIR/aapt2" dump badging "$APK_PATH" | head -n 3)
+          echo "$BADGING"
+          echo "$BADGING" | grep -q "name='com.example.seasonal_prep_cook'"
+          echo "$BADGING" | grep -q "versionName='${{ steps.version.outputs.build_name }}'"
+          echo "$BADGING" | grep -q "versionCode='${{ steps.version.outputs.build_number }}'"
+
+          EXPECTED_SHA256="420ecba455a1258d1919f153442d2bd006ac09b58131abda43eaccaffb6faa85"
+          CERT_INFO=$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK_PATH")
+          echo "$CERT_INFO"
+          echo "$CERT_INFO" | grep -qi "$EXPECTED_SHA256"
+
           cp "$APK_PATH" release-artifacts/recipe-app-release.apk
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
-          name: ${{ github.event.inputs.release_title || github.ref_name }}
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          name: ${{ github.event.inputs.release_title || steps.version.outputs.release_tag }}
           files: release-artifacts/recipe-app-release.apk
           generate_release_notes: true
           draft: false
           prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

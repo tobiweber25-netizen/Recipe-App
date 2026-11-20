@@ -16,31 +16,62 @@ class MealPackView extends StatefulWidget {
 }
 
 class _MealPackViewState extends State<MealPackView> {
+  static const List<int> _supportedServings = [2, 4, 6];
+
   bool _isLoadingDetails = false;
+  String? _loadError;
   int _currentServings = 2;
+  final Set<String> _localCheckedIngredients = {};
+
+  static String _formatQuantity(double quantity, String unit) {
+    if (quantity <= 0) return unit.trim();
+    final qtyStr = quantity == quantity.roundToDouble()
+        ? quantity.toStringAsFixed(0)
+        : quantity.toStringAsFixed(1);
+    return unit.trim().isEmpty ? qtyStr : '$qtyStr ${unit.trim()}';
+  }
 
   @override
   void initState() {
     super.initState();
-    _currentServings = widget.recipe.servings > 0 ? widget.recipe.servings : 2;
+    final initialServings = widget.recipe.servings;
+    _currentServings = _supportedServings.contains(initialServings) ? initialServings : 2;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndLoadDetails();
     });
   }
 
-  void _checkAndLoadDetails() async {
+  Recipe _resolveLatestRecipe(MealPackProvider provider) {
+    final targetId = widget.recipe.id;
+    if (targetId != null) {
+      final activePack = provider.activeMealPack;
+      if (activePack != null) {
+        final idx = activePack.recipes.indexWhere((r) => r.id == targetId);
+        if (idx != -1) return activePack.recipes[idx];
+      }
+      final savedIdx = provider.savedRecipes.indexWhere((r) => r.id == targetId);
+      if (savedIdx != -1) return provider.savedRecipes[savedIdx];
+    }
+    return widget.recipe;
+  }
+
+  Future<void> _checkAndLoadDetails() async {
     final provider = context.read<MealPackProvider>();
-    final activePack = provider.activeMealPack;
-    if (activePack == null) return;
+    final currentRecipe = _resolveLatestRecipe(provider);
 
-    Recipe currentRecipe = widget.recipe;
-    final index = activePack.recipes.indexWhere((r) => r.id == widget.recipe.id);
-    if (index != -1) currentRecipe = activePack.recipes[index];
-
-    if (currentRecipe.instructions.isEmpty) {
-      setState(() => _isLoadingDetails = true);
+    if (currentRecipe.instructions.isEmpty && provider.activeMealPack != null) {
+      setState(() {
+        _isLoadingDetails = true;
+        _loadError = null;
+      });
       try {
         await provider.loadRecipeDetails(currentRecipe);
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _loadError = e.toString().replaceFirst('Exception: ', '');
+          });
+        }
       } finally {
         if (mounted) setState(() => _isLoadingDetails = false);
       }
@@ -54,17 +85,8 @@ class _MealPackViewState extends State<MealPackView> {
 
     return Consumer<MealPackProvider>(
       builder: (context, provider, child) {
-        // Find latest recipe version
-        Recipe recipe = widget.recipe;
-        final activePack = provider.activeMealPack;
-        if (activePack != null) {
-          final found = activePack.recipes.firstWhere((r) => r.id == widget.recipe.id, orElse: () => widget.recipe);
-          recipe = found;
-        }
-
-        final isSaved = provider.savedRecipes.any((r) =>
-            r.id == recipe.id ||
-            (r.title == recipe.title && r.mealPackId == recipe.mealPackId));
+        final recipe = _resolveLatestRecipe(provider);
+        final isSaved = provider.isRecipeSaved(recipe);
 
         return Scaffold(
           appBar: AppBar(
@@ -93,18 +115,20 @@ class _MealPackViewState extends State<MealPackView> {
                 icon: const Icon(Icons.share_outlined),
                 onPressed: () {
                   if (recipe.instructions.isEmpty) return;
+                  final scaleFactor = (recipe.servings > 0) ? (_currentServings / recipe.servings) : 1.0;
                   final sb = StringBuffer();
                   sb.writeln('🍳 Recipe: ${recipe.title}\n');
                   if (recipe.description.isNotEmpty) {
                     sb.writeln('${recipe.description}\n');
                   }
-                  sb.writeln('⏱ Cook Time: ${recipe.cookTimeMinutes} min | 🍽 Servings: ${recipe.servings} | Tier: ${recipe.budgetTier}\n');
+                  sb.writeln('⏱ Cook Time: ${recipe.cookTimeMinutes} min | 🍽 Servings: $_currentServings | Tier: ${recipe.budgetTier}\n');
                   sb.writeln('🛒 Ingredients:');
                   if (recipe.recipeSpecificIngredients.isEmpty) {
                     sb.writeln('- Pantry staples & seasonal fresh produce');
                   } else {
                     for (var ing in recipe.recipeSpecificIngredients) {
-                      sb.writeln('• ${ing.name}: ${ing.quantity.toStringAsFixed(0)} ${ing.unit}');
+                      final formattedQty = _formatQuantity(ing.quantity * scaleFactor, ing.unit);
+                      sb.writeln(formattedQty.isNotEmpty ? '• ${ing.name}: $formattedQty' : '• ${ing.name}');
                     }
                   }
                   if (recipe.chefTip.isNotEmpty) {
@@ -225,7 +249,7 @@ class _MealPackViewState extends State<MealPackView> {
 
                 const SizedBox(height: AppTokens.spaceLg),
 
-                if (_isLoadingDetails || recipe.instructions.isEmpty)
+                if (_isLoadingDetails)
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 48.0),
@@ -248,6 +272,48 @@ class _MealPackViewState extends State<MealPackView> {
                               fontWeight: FontWeight.w700,
                               color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
                             ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else if (recipe.instructions.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 36.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline_rounded,
+                            size: 40,
+                            color: isDark ? AppTokens.errorDark : AppTokens.errorLight,
+                          ),
+                          const SizedBox(height: AppTokens.spaceMd),
+                          Text(
+                            'Could Not Load Recipe Steps',
+                            style: AppTokens.display(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
+                            ),
+                          ),
+                          if (_loadError != null) ...[
+                            const SizedBox(height: AppTokens.spaceSm),
+                            Text(
+                              _loadError!,
+                              textAlign: TextAlign.center,
+                              style: AppTokens.sansBody(
+                                fontSize: 13,
+                                color: isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: AppTokens.spaceMd),
+                          ElevatedButton.icon(
+                            onPressed: _checkAndLoadDetails,
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: const Text('Try Again'),
                           ),
                         ],
                       ),
@@ -376,6 +442,13 @@ class _MealPackViewState extends State<MealPackView> {
                       final scaledIngredients = recipe.recipeSpecificIngredients.map((ing) {
                         return ing.copyWith(quantity: ing.quantity * scaleFactor);
                       }).toList();
+                      const basicStaples = {
+                        'salt', 'pepper', 'black pepper', 'white pepper',
+                        'water', 'kosher salt', 'sea salt', 'tap water',
+                      };
+                      final displayIngredients = scaledIngredients
+                          .where((ing) => !basicStaples.contains(ing.name.toLowerCase().trim()))
+                          .toList();
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +465,7 @@ class _MealPackViewState extends State<MealPackView> {
                                 ),
                               ),
                               Text(
-                                '${scaledIngredients.length} items (${_currentServings}P)',
+                                '${displayIngredients.length} items (${_currentServings}P)',
                                 style: AppTokens.kicker(
                                   fontSize: 10.5,
                                   color: isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight,
@@ -401,7 +474,7 @@ class _MealPackViewState extends State<MealPackView> {
                             ],
                           ),
                           const SizedBox(height: AppTokens.spaceMd),
-                          scaledIngredients.isEmpty
+                          displayIngredients.isEmpty
                               ? Padding(
                                   padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
                                   child: Text(
@@ -414,18 +487,26 @@ class _MealPackViewState extends State<MealPackView> {
                               : Wrap(
                                   spacing: AppTokens.spaceSm,
                                   runSpacing: AppTokens.spaceSm,
-                                  children: scaledIngredients
-                                      .where((ing) {
-                                        final name = ing.name.toLowerCase().trim();
-                                        const basic = ['salt', 'pepper', 'black pepper', 'white pepper', 'water', 'kosher salt', 'sea salt', 'tap water'];
-                                        return !basic.contains(name);
-                                      })
-                                      .map((ing) {
-                                    final isChecked = ing.isChecked;
+                                  children: displayIngredients.map((ing) {
+                                    final localKey = '${ing.name}_${ing.unit}';
+                                    final isChecked = ing.id != null
+                                        ? ing.isChecked
+                                        : _localCheckedIngredients.contains(localKey);
+                                    final formattedQty = _formatQuantity(ing.quantity, ing.unit);
                                     return InkWell(
                                       borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                                       onTap: () {
-                                        provider.toggleIngredientChecked(ing, !isChecked);
+                                        if (ing.id != null) {
+                                          provider.toggleIngredientChecked(ing, !isChecked);
+                                        } else {
+                                          setState(() {
+                                            if (isChecked) {
+                                              _localCheckedIngredients.remove(localKey);
+                                            } else {
+                                              _localCheckedIngredients.add(localKey);
+                                            }
+                                          });
+                                        }
                                       },
                                       child: AnimatedContainer(
                                         duration: const Duration(milliseconds: 150),
@@ -466,15 +547,16 @@ class _MealPackViewState extends State<MealPackView> {
                                                 decoration: isChecked ? TextDecoration.lineThrough : null,
                                               ),
                                             ),
-                                            Text(
-                                              '(${ing.quantity > 0 ? (ing.quantity == ing.quantity.roundToDouble() ? ing.quantity.toStringAsFixed(0) : ing.quantity.toStringAsFixed(1)) : ''} ${ing.unit})',
-                                              style: AppTokens.numeral(
-                                                fontSize: 11.5,
-                                                color: isChecked
-                                                    ? (isDark ? AppTokens.textMutedDark : AppTokens.textMutedLight)
-                                                    : (isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight),
+                                            if (formattedQty.isNotEmpty)
+                                              Text(
+                                                '($formattedQty)',
+                                                style: AppTokens.numeral(
+                                                  fontSize: 11.5,
+                                                  color: isChecked
+                                                      ? (isDark ? AppTokens.textMutedDark : AppTokens.textMutedLight)
+                                                      : (isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight),
+                                                ),
                                               ),
-                                            ),
                                           ],
                                         ),
                                       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/curated_recipe_library.dart';
 import '../models/recipe.dart';
+import '../services/meal_pack_generator.dart';
 import '../state/meal_pack_provider.dart';
 import '../utils/app_tokens.dart';
 import 'meal_pack_view.dart';
@@ -44,18 +45,7 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
     super.dispose();
   }
 
-  bool _isVeg(Recipe r) {
-    const meat = [
-      'chicken', 'beef', 'pork', 'lamb', 'mutton', 'hake', 'fish', 'salmon',
-      'trout', 'clam', 'squid', 'shrimp', 'prawn', 'bacon', 'sausage',
-      'duck', 'veal', 'shank', 'mussel', 'calamari', 'cod', 'halibut', 'scallop'
-    ];
-    for (final ing in r.recipeSpecificIngredients) {
-      final n = ing.name.toLowerCase();
-      if (meat.any((k) => n.contains(k))) return false;
-    }
-    return true;
-  }
+  bool _isVeg(Recipe r) => MealPackGenerator.isVegetarian(r);
 
   List<Recipe> _getFilteredRecipes() {
     return CuratedRecipeLibrary.recipes.where((r) {
@@ -264,12 +254,10 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
         actions: [
           IconButton(
             icon: Icon(
-              context.watch<MealPackProvider>().themeMode == ThemeMode.light
-                  ? Icons.dark_mode_outlined
-                  : Icons.light_mode_outlined,
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
             onPressed: () {
-              context.read<MealPackProvider>().toggleThemeMode();
+              context.read<MealPackProvider>().toggleThemeMode(currentlyDark: isDark);
             },
             tooltip: 'Toggle Theme',
           ),
@@ -422,7 +410,7 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
                     delegate: SliverChildBuilderDelegate(
                       (context, idx) {
                         final recipe = filtered[idx];
-                        final isSaved = provider.savedRecipes.any((r) => r.title == recipe.title);
+                        final isSaved = provider.isRecipeSaved(recipe);
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: AppTokens.spaceMd),

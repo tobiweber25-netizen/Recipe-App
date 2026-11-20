@@ -1,6 +1,6 @@
 name: seasonal_prep_cook
 description: A personal mobile application for weekly meal prep inspiration and consolidated grocery lists, optimized for South African seasonality.
-version: 1.0.0+1
+version: 1.0.1+10001
 
 publish_to: 'none'
 

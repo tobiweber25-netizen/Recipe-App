@@ -5,6 +5,7 @@ import '../models/generate_options.dart';
 import 'meal_pack_view.dart';
 import '../models/recipe.dart';
 import '../utils/season_helper.dart';
+import '../services/app_update_manager.dart';
 import '../services/meal_pack_generator.dart';
 import '../utils/app_tokens.dart';
 import 'update_dialog.dart';
@@ -18,13 +19,45 @@ class DashboardView extends StatefulWidget {
 
 class _DashboardViewState extends State<DashboardView> {
   final TextEditingController _customDirectionController = TextEditingController();
-  
+  final AppUpdateManager _updateManager = AppUpdateManager();
+
+  AppUpdateInfo? _availableUpdate;
+  bool _hasPromptedUpdate = false;
+
   bool _isPreferencesExpanded = true;
   String _cuisineFocus = 'korean_asian';
   String _dietaryBalance = '3 vegetarian, 3 mixed protein';
   String _overlap = 'Smart ingredient reuse (share 2-3 fresh items)';
   String _budgetTier = 'standard'; // 'budget', 'standard', 'gourmet'
   int _servings = 2;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUpdateInBackground();
+  }
+
+  Future<void> _checkUpdateInBackground() async {
+    try {
+      final info = await _updateManager.checkForUpdate();
+      if (!info.hasUpdate) {
+        await _updateManager.cleanupCachedApks();
+        return;
+      }
+      if (!mounted) return;
+      setState(() => _availableUpdate = info);
+      if (!_hasPromptedUpdate && info.apkDownloadUrl != null) {
+        _hasPromptedUpdate = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            UpdateDialog.show(context, initialInfo: info);
+          }
+        });
+      }
+    } catch (_) {
+      // Silent background check: ignore offline or transient errors
+    }
+  }
 
   Widget _buildSeasonalHeader(BuildContext context, ThemeData theme, bool isDark) {
     final ctx = SeasonHelper.getSeasonalContext(DateTime.now());
@@ -82,6 +115,7 @@ class _DashboardViewState extends State<DashboardView> {
   @override
   void dispose() {
     _customDirectionController.dispose();
+    _updateManager.dispose();
     super.dispose();
   }
 
@@ -215,7 +249,7 @@ class _DashboardViewState extends State<DashboardView> {
           ),
         ],
       ),
-    );
+    ).whenComplete(controller.dispose);
   }
 
   Widget _buildPantrySection(BuildContext context, MealPackProvider provider, bool isDark) {
@@ -807,7 +841,7 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildRecipeCard(BuildContext context, Recipe recipe, MealPackProvider provider, bool isDark) {
-    final isSaved = provider.savedRecipes.any((r) => r.id == recipe.id || (r.title == recipe.title && r.mealPackId == recipe.mealPackId));
+    final isSaved = provider.isRecipeSaved(recipe);
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppTokens.spaceMd),
@@ -1109,7 +1143,7 @@ class _DashboardViewState extends State<DashboardView> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${activePack.season.toUpperCase()} • 6 COMPLETE DINNERS',
+                      '${activePack.season.toUpperCase()} • ${activePack.recipes.length} COMPLETE DINNERS',
                       style: AppTokens.kicker(
                         fontSize: 10,
                         color: isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight,
@@ -1144,9 +1178,27 @@ class _DashboardViewState extends State<DashboardView> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.system_update_rounded),
-            onPressed: () => UpdateDialog.show(context),
-            tooltip: 'Check for Updates',
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.system_update_rounded),
+                if (_availableUpdate?.hasUpdate == true)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: () => UpdateDialog.show(context, autoCheck: true),
+            tooltip: _availableUpdate?.hasUpdate == true ? 'Update Available' : 'Check for Updates',
           ),
           IconButton(
             icon: const Icon(Icons.history_rounded),
@@ -1155,12 +1207,10 @@ class _DashboardViewState extends State<DashboardView> {
           ),
           IconButton(
             icon: Icon(
-              context.watch<MealPackProvider>().themeMode == ThemeMode.light
-                  ? Icons.dark_mode_outlined
-                  : Icons.light_mode_outlined,
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
             onPressed: () {
-              context.read<MealPackProvider>().toggleThemeMode();
+              context.read<MealPackProvider>().toggleThemeMode(currentlyDark: isDark);
             },
             tooltip: 'Toggle Theme',
           ),
@@ -1435,31 +1485,31 @@ class _DashboardViewState extends State<DashboardView> {
                                       items: [
                                         DropdownMenuItem(
                                           value: '3 vegetarian, 3 mixed protein',
-                                          child: Text('Balanced (3 Veg, 3 Protein/Meat)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('Balanced (3 Veg, 3 Protein/Meat)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                         DropdownMenuItem(
                                           value: 'Mostly vegetarian (5 veg, 1 mixed protein)',
-                                          child: Text('Mostly Vegetarian (5 Veg, 1 Meat)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('Mostly Vegetarian (5 Veg, 1 Meat)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                         DropdownMenuItem(
                                           value: 'All vegetarian',
-                                          child: Text('All Vegetarian (6 Veg Dinners)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('All Vegetarian (6 Veg Dinners)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                         DropdownMenuItem(
                                           value: 'Mostly meat (1 veg, 5 mixed protein)',
-                                          child: Text('Mostly Meat/Protein (1 Veg, 5 Meat)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('Mostly Meat/Protein (1 Veg, 5 Meat)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                         DropdownMenuItem(
                                           value: 'All meat and protein (6 protein-focused meals)',
-                                          child: Text('All Meat & Protein (6 Dinners)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('All Meat & Protein (6 Dinners)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                         DropdownMenuItem(
                                           value: 'High protein fitness meals (lean chicken, beef, fish, eggs, tofu)',
-                                          child: Text('High Protein (Fitness Focus)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('High Protein (Fitness Focus)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                         DropdownMenuItem(
                                           value: 'No dietary restrictions',
-                                          child: Text('Any / Surprise Me', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('Any / Surprise Me', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                       ],
                                       onChanged: (val) {
@@ -1500,15 +1550,15 @@ class _DashboardViewState extends State<DashboardView> {
                                       items: [
                                         DropdownMenuItem(
                                           value: 'Smart ingredient reuse (share 2-3 fresh items)',
-                                          child: Text('Smart Sharing (Low Waste & Variety)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('Smart Sharing (Low Waste & Variety)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                         DropdownMenuItem(
                                           value: '>=80% overlap in fresh ingredients',
-                                          child: Text('High Overlap (Batch Cooking & Strict Budget)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('High Overlap (Batch Cooking & Strict Budget)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                         DropdownMenuItem(
                                           value: 'No overlap required, maximum recipe variety',
-                                          child: Text('Maximum Variety (Distinct Cuisine Every Day)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5)),
+                                          child: Text('Maximum Variety (Distinct Cuisine Every Day)', overflow: TextOverflow.ellipsis, style: AppTokens.sansBody(fontSize: 13.5, color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight)),
                                         ),
                                       ],
                                       onChanged: (val) {

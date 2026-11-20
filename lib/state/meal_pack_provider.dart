@@ -110,6 +110,7 @@ class MealPackProvider extends ChangeNotifier {
           _savedMealPacks[packIdx] = _activeMealPack!;
         }
       }
+      _savedRecipes = await _dbHelper.getSavedRecipes();
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to swap recipe: $e';
@@ -244,16 +245,16 @@ class MealPackProvider extends ChangeNotifier {
   Future<void> loadRecipeDetails(Recipe recipe) async {
     if (_activeMealPack == null) return;
     try {
-      final updatedRecipe = await _llmService.generateRecipeDetails(recipe, _activeMealPack!);
-      await _dbHelper.updateRecipeDetails(updatedRecipe);
-      
+      final generatedRecipe = await _llmService.generateRecipeDetails(recipe, _activeMealPack!);
+      final updatedRecipe = await _dbHelper.updateRecipeDetails(generatedRecipe);
+
       // Update local state
       final recipeIndex = _activeMealPack!.recipes.indexWhere((r) => r.id == recipe.id);
       if (recipeIndex != -1) {
         final newRecipes = List<Recipe>.from(_activeMealPack!.recipes);
         newRecipes[recipeIndex] = updatedRecipe;
         _activeMealPack = _activeMealPack!.copyWith(recipes: newRecipes);
-        
+
         // Also update saved packs reference if needed
         final packIndex = _savedMealPacks.indexWhere((p) => p.id == _activeMealPack!.id);
         if (packIndex != -1) {
@@ -278,8 +279,9 @@ class MealPackProvider extends ChangeNotifier {
       await _dbHelper.deleteMealPack(id);
       _savedMealPacks.removeWhere((mp) => mp.id == id);
       if (_activeMealPack?.id == id) {
-        _activeMealPack = null;
+        _activeMealPack = _savedMealPacks.isNotEmpty ? _savedMealPacks.first : null;
       }
+      _savedRecipes = await _dbHelper.getSavedRecipes();
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to delete meal pack: $e';
@@ -313,9 +315,17 @@ class MealPackProvider extends ChangeNotifier {
             recipe.recipeSpecificIngredients[specificIndex].isChecked = isChecked;
           }
         }
-        
-        notifyListeners();
       }
+
+      for (var recipe in _savedRecipes) {
+        final specificIndex = recipe.recipeSpecificIngredients
+            .indexWhere((ing) => ing.id == ingredient.id);
+        if (specificIndex != -1) {
+          recipe.recipeSpecificIngredients[specificIndex].isChecked = isChecked;
+        }
+      }
+
+      notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to update ingredient status: $e';
       notifyListeners();
@@ -344,32 +354,32 @@ class MealPackProvider extends ChangeNotifier {
     }
   }
 
+  bool isRecipeSaved(Recipe recipe) {
+    return _savedRecipes.any((r) =>
+        (recipe.id != null && r.id == recipe.id) || r.title == recipe.title);
+  }
+
   Future<void> toggleSaveRecipe(Recipe recipe) async {
-    if (recipe.id == null) return;
-    final newSaveState = !recipe.isSaved;
+    final currentlySaved = isRecipeSaved(recipe);
+    final newSaveState = !currentlySaved;
+    final now = DateTime.now();
+
     try {
-      await _dbHelper.updateRecipeSavedState(recipe.id!, newSaveState);
-
-      if (_activeMealPack != null) {
-        for (int i = 0; i < _activeMealPack!.recipes.length; i++) {
-          if (_activeMealPack!.recipes[i].id == recipe.id) {
-            _activeMealPack!.recipes[i] = _activeMealPack!.recipes[i].copyWith(
-              isSaved: newSaveState,
-              savedAt: newSaveState ? DateTime.now() : null,
-              clearSavedAt: !newSaveState,
-            );
-          }
+      if (recipe.id != null) {
+        await _dbHelper.updateRecipeSavedState(recipe.id!, newSaveState);
+        if (!newSaveState) {
+          await _dbHelper.deleteLibraryRecipe(recipe.title);
         }
-      }
-
-      for (var pack in _savedMealPacks) {
-        for (int i = 0; i < pack.recipes.length; i++) {
-          if (pack.recipes[i].id == recipe.id) {
-            pack.recipes[i] = pack.recipes[i].copyWith(
-              isSaved: newSaveState,
-              savedAt: newSaveState ? DateTime.now() : null,
-              clearSavedAt: !newSaveState,
-            );
+        _syncRecipeSavedStateInMemory(recipe.id!, newSaveState, now);
+      } else {
+        if (newSaveState) {
+          await _dbHelper.saveLibraryRecipe(recipe);
+        } else {
+          await _dbHelper.deleteLibraryRecipe(recipe.title);
+          // Also unsave any pack recipes with the same title if saved
+          for (final saved in _savedRecipes.where((r) => r.title == recipe.title && r.id != null)) {
+            await _dbHelper.updateRecipeSavedState(saved.id!, false);
+            _syncRecipeSavedStateInMemory(saved.id!, false, now);
           }
         }
       }
@@ -379,6 +389,32 @@ class MealPackProvider extends ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to update recipe bookmark state: $e';
       notifyListeners();
+    }
+  }
+
+  void _syncRecipeSavedStateInMemory(int recipeId, bool isSaved, DateTime timestamp) {
+    if (_activeMealPack != null) {
+      for (int i = 0; i < _activeMealPack!.recipes.length; i++) {
+        if (_activeMealPack!.recipes[i].id == recipeId) {
+          _activeMealPack!.recipes[i] = _activeMealPack!.recipes[i].copyWith(
+            isSaved: isSaved,
+            savedAt: isSaved ? timestamp : null,
+            clearSavedAt: !isSaved,
+          );
+        }
+      }
+    }
+
+    for (var pack in _savedMealPacks) {
+      for (int i = 0; i < pack.recipes.length; i++) {
+        if (pack.recipes[i].id == recipeId) {
+          pack.recipes[i] = pack.recipes[i].copyWith(
+            isSaved: isSaved,
+            savedAt: isSaved ? timestamp : null,
+            clearSavedAt: !isSaved,
+          );
+        }
+      }
     }
   }
 
@@ -424,11 +460,13 @@ class MealPackProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleThemeMode() {
-    if (_themeMode == ThemeMode.light) {
-      _themeMode = ThemeMode.dark;
-    } else {
+  void toggleThemeMode({bool? currentlyDark}) {
+    if (currentlyDark != null) {
+      _themeMode = currentlyDark ? ThemeMode.light : ThemeMode.dark;
+    } else if (_themeMode == ThemeMode.dark) {
       _themeMode = ThemeMode.light;
+    } else {
+      _themeMode = ThemeMode.dark;
     }
     notifyListeners();
   }

@@ -27,16 +27,31 @@ class MealPackGenerator {
     _recentHistory.clear();
   }
 
-  static bool _isVegetarian(Recipe recipe) {
+  static bool isVegetarian(Recipe recipe) {
     const meatKeywords = [
       'chicken', 'beef', 'pork', 'lamb', 'mutton', 'hake', 'fish', 'salmon',
-      'trout', 'clam', 'squid', 'shrimp', 'prawn', 'bacon', 'sausage'
+      'trout', 'clam', 'squid', 'shrimp', 'prawn', 'bacon', 'sausage',
+      'duck', 'veal', 'shank', 'mussel', 'calamari', 'cod', 'halibut',
+      'scallop', 'chorizo', 'chouriço', 'chashu', 'kielbasa', 'catfish',
+      'tilapia', 'bonito', 'anchov', 'prosciutto', 'pancetta', 'guanciale',
+      'salami', 'turkey', 'venison', 'biltong', 'boerewors', 'ostrich',
+      'crab', 'lobster', 'oyster', 'tuna', 'mackerel', 'sardine', 'snapper',
+      'steak', 'brisket', 'short rib', 'oxtail', 'tripe', 'lardons', 'tocino',
     ];
+    final hamWord = RegExp(r'\bham\b');
     for (final ing in recipe.recipeSpecificIngredients) {
       final name = ing.name.toLowerCase();
-      if (meatKeywords.any((k) => name.contains(k))) return false;
+      if (meatKeywords.any((k) => name.contains(k)) || hamWord.hasMatch(name)) {
+        return false;
+      }
     }
     return true;
+  }
+
+  static double _roundScaledQuantity(double value) {
+    if (value <= 0) return 0;
+    if (value >= 10) return value.roundToDouble();
+    return (value * 4).round() / 4.0;
   }
 
   static String _detectPrimaryProtein(Recipe r) {
@@ -254,8 +269,8 @@ class MealPackGenerator {
 
     // 3. Select balanced recipes matching dietary balance, rotation, and overlap
     final List<Recipe> selected = [];
-    final vegCandidates = scoredRecipes.where((e) => _isVegetarian(e.key)).map((e) => e.key).toList();
-    final meatCandidates = scoredRecipes.where((e) => !_isVegetarian(e.key)).map((e) => e.key).toList();
+    final vegCandidates = scoredRecipes.where((e) => isVegetarian(e.key)).map((e) => e.key).toList();
+    final meatCandidates = scoredRecipes.where((e) => !isVegetarian(e.key)).map((e) => e.key).toList();
     final Set<String> pickedCuisines = {};
     final Map<String, int> proteinCounts = {};
     final Map<String, int> starchCounts = {};
@@ -367,7 +382,7 @@ class MealPackGenerator {
 
       final scaledIngredients = r.recipeSpecificIngredients.map((ing) {
         return ing.copyWith(
-          quantity: (ing.quantity * scale).roundToDouble(),
+          quantity: _roundScaledQuantity(ing.quantity * scale),
         );
       }).toList();
 
@@ -474,7 +489,7 @@ class MealPackGenerator {
   List<Recipe> findAlternativeRecipes(Recipe currentRecipe, MealPack currentPack, GenerateOptions options) {
     final existingTitles = currentPack.recipes.map((r) => r.title.toLowerCase()).toSet();
     existingTitles.add(currentRecipe.title.toLowerCase());
-    final isVeg = _isVegetarian(currentRecipe);
+    final isVeg = isVegetarian(currentRecipe);
     final random = Random();
 
     // Candidates not already in active pack and not current recipe
@@ -489,8 +504,8 @@ class MealPackGenerator {
       double scoreB = 0.0;
 
       // Dietary match
-      if (_isVegetarian(a) == isVeg) scoreA += 25.0;
-      if (_isVegetarian(b) == isVeg) scoreB += 25.0;
+      if (isVegetarian(a) == isVeg) scoreA += 25.0;
+      if (isVegetarian(b) == isVeg) scoreB += 25.0;
 
       // Cuisine match
       if (a.cuisine == currentRecipe.cuisine) scoreA += 15.0;
@@ -515,7 +530,7 @@ class MealPackGenerator {
       final scale = currentRecipe.servings / r.servings;
       final scaledIngredients = r.recipeSpecificIngredients.map((ing) {
         return ing.copyWith(
-          quantity: (ing.quantity * scale).roundToDouble(),
+          quantity: _roundScaledQuantity(ing.quantity * scale),
         );
       }).toList();
 

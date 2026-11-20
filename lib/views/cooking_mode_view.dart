@@ -36,6 +36,12 @@ class _CookingModeViewState extends State<CookingModeView> {
     super.dispose();
   }
 
+  static String _formatQuantity(double quantity) {
+    if (quantity <= 0) return '';
+    if (quantity == quantity.roundToDouble()) return quantity.toInt().toString();
+    return quantity.toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '');
+  }
+
   void _startTimer(int minutes) {
     _timer?.cancel();
     final totalSecs = minutes * 60;
@@ -46,6 +52,10 @@ class _CookingModeViewState extends State<CookingModeView> {
     });
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       if (_timerSecondsRemaining > 0) {
         setState(() {
           _timerSecondsRemaining--;
@@ -68,6 +78,10 @@ class _CookingModeViewState extends State<CookingModeView> {
     } else if (_timerSecondsRemaining > 0) {
       setState(() => _isTimerRunning = true);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
         if (_timerSecondsRemaining > 0) {
           setState(() {
             _timerSecondsRemaining--;
@@ -164,7 +178,7 @@ class _CookingModeViewState extends State<CookingModeView> {
   }
 
   List<int> _detectAllMinutesInText(String text) {
-    final reg = RegExp(r'(\d+)\s*(?:minutes|mins|min)\b', caseSensitive: false);
+    final reg = RegExp(r'(\d+)\s*(?:minutes|minute|mins|min)\b', caseSensitive: false);
     final matches = reg.allMatches(text);
     final results = <int>[];
     for (final m in matches) {
@@ -338,7 +352,7 @@ class _CookingModeViewState extends State<CookingModeView> {
                                       ),
                                     ),
                                     Text(
-                                      '${ing.quantity > 0 ? (ing.quantity % 1 == 0 ? ing.quantity.toInt().toString() : ing.quantity.toString()) : ''} ${ing.unit}',
+                                      '${_formatQuantity(ing.quantity)} ${ing.unit}'.trim(),
                                       style: AppTokens.numeral(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
@@ -595,11 +609,7 @@ class _CookingModeViewState extends State<CookingModeView> {
                                             spacing: 6,
                                             runSpacing: 6,
                                             children: stepIngredients.map((ing) {
-                                              final qtyStr = ing.quantity > 0
-                                                  ? (ing.quantity % 1 == 0
-                                                      ? ing.quantity.toInt().toString()
-                                                      : ing.quantity.toString())
-                                                  : '';
+                                              final qtyStr = _formatQuantity(ing.quantity);
                                               final label = qtyStr.isNotEmpty
                                                   ? '• ${ing.name}: $qtyStr ${ing.unit}'
                                                   : '• ${ing.name}';
