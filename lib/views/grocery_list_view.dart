@@ -4,13 +4,14 @@ import 'package:share_plus/share_plus.dart';
 import '../models/ingredient.dart';
 import '../state/meal_pack_provider.dart';
 import '../utils/app_tokens.dart';
+import '../utils/botanical_marks.dart';
 
 class GroceryListView extends StatelessWidget {
   const GroceryListView({super.key});
 
   void _shareGroceryList(BuildContext context, Map<String, List<Ingredient>> aisleGroups) {
     final sb = StringBuffer();
-    sb.writeln('🛒 MARKET PROVISION LIST');
+    sb.writeln('WEEKLY GROCERY LIST');
     sb.writeln('---------------------------');
 
     int totalItems = 0;
@@ -38,26 +39,38 @@ class GroceryListView extends StatelessWidget {
     );
   }
 
+  IconData _aisleIcon(String aisleName) {
+    switch (aisleName) {
+      case 'Fresh Produce':
+        return Icons.eco_outlined;
+      case 'Meat & Protein':
+        return Icons.restaurant_outlined;
+      case 'Dairy & Chilled':
+        return Icons.egg_outlined;
+      case 'Grains & Noodles':
+        return Icons.grain_rounded;
+      default:
+        return Icons.inventory_2_outlined;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-    final textPrimary = isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight;
-    final textSecondary = isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight;
-    final borderColor = isDark ? AppTokens.borderDark : AppTokens.borderLight;
-    final cardBg = isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight;
-    final mutedBg = isDark ? AppTokens.surfaceMutedDark : AppTokens.surfaceMutedLight;
+    final primary = AppTokens.primary(isDark);
+    final sageInk = AppTokens.sageInk(isDark);
+    final textPrimary = AppTokens.textPrimary(isDark);
+    final textSecondary = AppTokens.textSecondary(isDark);
+    final textMuted = AppTokens.textMuted(isDark);
+    final border = AppTokens.border(isDark);
+    final surface = AppTokens.surface(isDark);
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: AppTokens.spaceLg,
         title: Text(
-          'GROCERY BASKET',
-          style: AppTokens.kicker(
-            fontSize: 13,
-            letterSpacing: 1.4,
-            fontWeight: FontWeight.w700,
-            color: textPrimary,
-          ),
+          'Groceries',
+          style: AppTokens.display(fontSize: 21, color: textPrimary),
         ),
         actions: [
           Consumer<MealPackProvider>(
@@ -73,28 +86,20 @@ class GroceryListView extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.restart_alt_rounded),
+                    icon: const Icon(Icons.restart_alt_rounded, size: 21),
                     onPressed: checkedItems > 0 ? () => provider.uncheckAllIngredients() : null,
-                    tooltip: 'Clear Checked',
+                    tooltip: 'Uncheck All',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.share_outlined),
+                    icon: const Icon(Icons.share_outlined, size: 20),
                     onPressed: hasItems ? () => _shareGroceryList(context, aisleGroups) : null,
-                    tooltip: 'Share via WhatsApp / Notes',
+                    tooltip: 'Share Grocery List',
                   ),
                 ],
               );
             },
           ),
-          IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-            ),
-            onPressed: () {
-              context.read<MealPackProvider>().toggleThemeMode(currentlyDark: isDark);
-            },
-            tooltip: 'Toggle Theme',
-          ),
+          const SizedBox(width: AppTokens.spaceSm),
         ],
       ),
       body: Consumer<MealPackProvider>(
@@ -110,34 +115,24 @@ class GroceryListView extends StatelessWidget {
                     Container(
                       width: 72,
                       height: 72,
-                      decoration: const BoxDecoration(
-                        gradient: AppTokens.sunburstGradient,
+                      decoration: BoxDecoration(
+                        color: AppTokens.surfaceWarm(isDark),
                         shape: BoxShape.circle,
-                        boxShadow: AppTokens.sunGlowShadow,
                       ),
-                      child: const Icon(
-                        Icons.shopping_basket_rounded,
-                        size: 32,
-                        color: Colors.white,
+                      child: Center(
+                        child: BotanicalSprig(size: 40, color: primary),
                       ),
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
                     Text(
-                      'No Active Grocery Basket',
-                      style: AppTokens.display(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: textPrimary,
-                      ),
+                      'No active grocery list',
+                      style: AppTokens.display(fontSize: 22, color: textPrimary),
                     ),
                     const SizedBox(height: AppTokens.spaceSm),
                     Text(
-                      'Generate a 6-dinner meal pack in the Planner to automatically aggregate your consolidated market list with zero food waste.',
+                      'Curate a weekly menu in the Planner to combine every ingredient by aisle automatically.',
                       textAlign: TextAlign.center,
-                      style: AppTokens.sansBody(
-                        fontSize: 13,
-                        color: textSecondary,
-                      ),
+                      style: AppTokens.sansBody(fontSize: 13.5, color: textSecondary),
                     ),
                   ],
                 ),
@@ -154,47 +149,42 @@ class GroceryListView extends StatelessWidget {
 
           return CustomScrollView(
             slivers: [
-              // Summary Banner
+              // Calm Oat-Linen Progress Banner
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppTokens.spaceMd,
+                    AppTokens.spaceLg,
                     AppTokens.spaceSm,
+                    AppTokens.spaceLg,
                     AppTokens.spaceMd,
-                    AppTokens.spaceSm,
                   ),
                   child: Container(
-                    padding: const EdgeInsets.all(AppTokens.spaceMd),
+                    padding: const EdgeInsets.all(AppTokens.spaceMd + 2),
                     decoration: BoxDecoration(
-                      color: cardBg,
+                      color: AppTokens.surfaceWarm(isDark),
                       borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                      border: Border.all(color: borderColor, width: 1.0),
-                      boxShadow: AppTokens.cardShadow,
+                      border: Border.all(color: AppTokens.sandBorder(isDark), width: 1.0),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'MARKET CHECKLIST',
-                                    style: AppTokens.kicker(
-                                      fontSize: 10,
-                                      letterSpacing: 1.2,
-                                      color: primaryColor,
-                                    ),
+                                    'MARKET LIST',
+                                    style: AppTokens.kicker(fontSize: 9.5, color: sageInk),
                                   ),
-                                  const SizedBox(height: AppTokens.spaceXs),
+                                  const SizedBox(height: 4),
                                   Text(
                                     activePack.title,
-                                    style: AppTokens.display(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
+                                    style: AppTokens.serifItalic(
+                                      fontSize: 19,
                                       color: textPrimary,
                                     ),
                                     maxLines: 1,
@@ -203,34 +193,32 @@ class GroceryListView extends StatelessWidget {
                                 ],
                               ),
                             ),
+                            const SizedBox(width: AppTokens.spaceSm),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppTokens.spaceSm + 4,
-                                vertical: AppTokens.spaceXs + 1,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
+                                color: surface,
                                 borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                                border: Border.all(color: border),
                               ),
                               child: Text(
-                                '$checkedItems / $totalItems done',
+                                '$checkedItems / $totalItems',
                                 style: AppTokens.numeral(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: primaryColor,
+                                  fontSize: 11.5,
+                                  color: sageInk,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppTokens.spaceSm + 4),
+                        const SizedBox(height: AppTokens.spaceMd),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                           child: LinearProgressIndicator(
                             value: totalItems > 0 ? checkedItems / totalItems : 0.0,
-                            minHeight: 6,
-                            backgroundColor: mutedBg,
-                            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                            minHeight: 4,
+                            backgroundColor: border,
+                            valueColor: AlwaysStoppedAnimation<Color>(primary),
                           ),
                         ),
                       ],
@@ -239,179 +227,163 @@ class GroceryListView extends StatelessWidget {
                 ),
               ),
 
-              // Aisle Categories
+              // Porcelain Aisle Sheets
               ...aisleGroups.entries.where((e) => e.value.isNotEmpty).map((entry) {
                 final aisleName = entry.key;
                 final items = entry.value;
-
-                IconData aisleIcon;
-                Color aisleAccent;
-                switch (aisleName) {
-                  case 'Fresh Produce':
-                    aisleIcon = Icons.eco_rounded;
-                    aisleAccent = isDark ? AppTokens.accentMintDark : AppTokens.accentMintLight;
-                    break;
-                  case 'Meat & Protein':
-                    aisleIcon = Icons.restaurant_rounded;
-                    aisleAccent = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-                    break;
-                  case 'Dairy & Chilled':
-                    aisleIcon = Icons.egg_rounded;
-                    aisleAccent = isDark ? AppTokens.accentSunDark : AppTokens.accentSun;
-                    break;
-                  case 'Grains & Noodles':
-                    aisleIcon = Icons.grain_rounded;
-                    aisleAccent = isDark ? AppTokens.accentSkyDark : AppTokens.accentSkyLight;
-                    break;
-                  default:
-                    aisleIcon = Icons.inventory_2_rounded;
-                    aisleAccent = textSecondary;
-                    break;
-                }
+                final isFresh = aisleName == 'Fresh Produce';
 
                 return SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTokens.spaceMd,
-                      vertical: AppTokens.spaceXs + 2,
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTokens.spaceLg,
+                      0,
+                      AppTokens.spaceLg,
+                      AppTokens.spaceMd,
                     ),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: cardBg,
+                        color: surface,
                         borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                        border: Border.all(color: borderColor, width: 1.0),
-                        boxShadow: AppTokens.cardShadow,
+                        border: Border.all(color: border, width: 1.0),
+                        boxShadow: AppTokens.paperShadow(isDark),
                       ),
-                      padding: const EdgeInsets.all(AppTokens.spaceMd),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppTokens.spaceMd + 2,
+                        AppTokens.spaceMd,
+                        AppTokens.spaceMd + 2,
+                        AppTokens.spaceSm,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: aisleAccent.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(aisleIcon, size: 16, color: aisleAccent),
+                              Icon(
+                                _aisleIcon(aisleName),
+                                size: 17,
+                                color: isFresh ? sageInk : textSecondary,
                               ),
-                              const SizedBox(width: AppTokens.spaceSm + 2),
+                              const SizedBox(width: 9),
                               Expanded(
                                 child: Text(
                                   aisleName.toUpperCase(),
                                   style: AppTokens.kicker(
-                                    fontSize: 12,
-                                    letterSpacing: 1.2,
-                                    fontWeight: FontWeight.w700,
-                                    color: textPrimary,
+                                    fontSize: 10.5,
+                                    color: isFresh ? sageInk : textPrimary,
                                   ),
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppTokens.spaceSm + 2,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: mutedBg,
-                                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                ),
-                                child: Text(
-                                  '${items.length} items',
-                                  style: AppTokens.numeral(
-                                    fontSize: 10.5,
-                                    color: textSecondary,
-                                  ),
+                              Text(
+                                '${items.length} items',
+                                style: AppTokens.numeral(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: textMuted,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: AppTokens.spaceSm + 2),
-                          Divider(height: 1, color: borderColor),
-                          const SizedBox(height: AppTokens.spaceXs),
-                          ...items.map((ing) {
-                            final isChecked = ing.isChecked;
-                            final isInPantry = provider.pantryItems.any(
-                              (p) => ing.name.toLowerCase().contains(p.toLowerCase()),
-                            );
-                            final qtyStr = ing.quantity > 0
-                                ? '${ing.quantity.toStringAsFixed(ing.quantity.truncateToDouble() == ing.quantity ? 0 : 1)} ${ing.unit}'
-                                : '';
+                          const SizedBox(height: 10),
+                          Divider(height: 1, color: border),
+                          for (int i = 0; i < items.length; i++) ...[
+                            Builder(
+                              builder: (context) {
+                                final ing = items[i];
+                                final isChecked = ing.isChecked;
+                                final isInPantry = provider.pantryItems.any(
+                                  (p) => ing.name.toLowerCase().contains(p.toLowerCase()),
+                                );
+                                final qtyStr = ing.quantity > 0
+                                    ? '${ing.quantity.toStringAsFixed(ing.quantity.truncateToDouble() == ing.quantity ? 0 : 1)} ${ing.unit}'
+                                    : '';
 
-                            return InkWell(
-                              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                              onTap: () {
-                                provider.toggleConsolidatedIngredient(ing.name, !isChecked);
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppTokens.spaceSm,
-                                  horizontal: AppTokens.spaceXs,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isChecked ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                                      size: 19,
-                                      color: isChecked ? aisleAccent : borderColor,
-                                    ),
-                                    const SizedBox(width: AppTokens.spaceSm + 4),
-                                    Expanded(
-                                      child: Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              ing.name,
-                                              style: AppTokens.sansBody(
-                                                fontSize: 13.5,
-                                                fontWeight: isChecked ? FontWeight.w400 : FontWeight.w500,
-                                                color: isChecked
-                                                    ? textSecondary.withValues(alpha: 0.5)
-                                                    : textPrimary,
-                                              ).copyWith(
-                                                decoration: isChecked ? TextDecoration.lineThrough : null,
-                                              ),
-                                            ),
-                                          ),
-                                          if (isInPantry) ...[
-                                            const SizedBox(width: 6),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: (isDark ? AppTokens.accentMintDark : AppTokens.accentMintLight).withValues(alpha: 0.18),
-                                                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                              ),
-                                              child: Text(
-                                                'IN PANTRY',
-                                                style: AppTokens.kicker(
-                                                  fontSize: 9,
-                                                  letterSpacing: 0.8,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: isDark ? AppTokens.accentMintDark : const Color(0xFF065F46),
+                                return InkWell(
+                                  onTap: () => provider.toggleConsolidatedIngredient(
+                                    ing.name,
+                                    !isChecked,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          isChecked
+                                              ? Icons.check_circle_rounded
+                                              : Icons.radio_button_unchecked_rounded,
+                                          size: 19,
+                                          color: isChecked
+                                              ? primary
+                                              : (isDark
+                                                  ? AppTokens.borderHoverDark
+                                                  : AppTokens.borderHoverLight),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  ing.name,
+                                                  style: AppTokens.sansBody(
+                                                    fontSize: 14,
+                                                    fontWeight: isChecked
+                                                        ? FontWeight.w400
+                                                        : FontWeight.w500,
+                                                    color: isChecked ? textMuted : textPrimary,
+                                                  ).copyWith(
+                                                    decoration: isChecked
+                                                        ? TextDecoration.lineThrough
+                                                        : null,
+                                                  ),
                                                 ),
                                               ),
+                                              if (isInPantry) ...[
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 7,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppTokens.primaryContainer(isDark),
+                                                    borderRadius: BorderRadius.circular(
+                                                      AppTokens.radiusPill,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'IN PANTRY',
+                                                    style: AppTokens.kicker(
+                                                      fontSize: 8.5,
+                                                      letterSpacing: 0.8,
+                                                      color: sageInk,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        if (qtyStr.isNotEmpty) ...[
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            qtyStr,
+                                            style: AppTokens.numeral(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w500,
+                                              color: isChecked ? textMuted : sageInk,
                                             ),
-                                          ],
+                                          ),
                                         ],
-                                      ),
+                                      ],
                                     ),
-                                    Text(
-                                      qtyStr,
-                                      style: AppTokens.numeral(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isChecked
-                                            ? textSecondary.withValues(alpha: 0.4)
-                                            : primaryColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }),
+                                  ),
+                                );
+                              },
+                            ),
+                            if (i < items.length - 1)
+                              Divider(height: 1, color: border.withValues(alpha: 0.7)),
+                          ],
                         ],
                       ),
                     ),

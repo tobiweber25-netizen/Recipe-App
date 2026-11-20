@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/recipe.dart';
 import '../models/ingredient.dart';
+import '../models/recipe.dart';
 import '../utils/app_tokens.dart';
+import '../utils/botanical_marks.dart';
 
 class CookingModeView extends StatefulWidget {
   final Recipe recipe;
@@ -23,7 +24,6 @@ class _CookingModeViewState extends State<CookingModeView> {
   int _currentStepIndex = 0;
   final PageController _pageController = PageController();
 
-  // Timer State
   Timer? _timer;
   int _timerSecondsRemaining = 0;
   int _timerTotalSeconds = 0;
@@ -57,14 +57,10 @@ class _CookingModeViewState extends State<CookingModeView> {
         return;
       }
       if (_timerSecondsRemaining > 0) {
-        setState(() {
-          _timerSecondsRemaining--;
-        });
+        setState(() => _timerSecondsRemaining--);
       } else {
         timer.cancel();
-        setState(() {
-          _isTimerRunning = false;
-        });
+        setState(() => _isTimerRunning = false);
         HapticFeedback.heavyImpact();
         _showTimerCompleteDialog(minutes);
       }
@@ -83,14 +79,10 @@ class _CookingModeViewState extends State<CookingModeView> {
           return;
         }
         if (_timerSecondsRemaining > 0) {
-          setState(() {
-            _timerSecondsRemaining--;
-          });
+          setState(() => _timerSecondsRemaining--);
         } else {
           timer.cancel();
-          setState(() {
-            _isTimerRunning = false;
-          });
+          setState(() => _isTimerRunning = false);
           HapticFeedback.heavyImpact();
           _showTimerCompleteDialog(_timerTotalSeconds ~/ 60);
         }
@@ -107,70 +99,60 @@ class _CookingModeViewState extends State<CookingModeView> {
     });
   }
 
-  void _addMinuteToTimer() {
+  void _addMinutesToTimer(int extraMinutes) {
     setState(() {
-      _timerSecondsRemaining += 60;
-      _timerTotalSeconds += 60;
+      _timerSecondsRemaining += extraMinutes * 60;
+      _timerTotalSeconds += extraMinutes * 60;
     });
   }
 
   void _showTimerCompleteDialog(int minutes) {
     if (!mounted) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight;
-    final textSecondary = isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight;
-    final primaryColor = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-    final cardBg = isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight;
-    final borderColor = isDark ? AppTokens.borderDark : AppTokens.borderLight;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: cardBg,
+        backgroundColor: AppTokens.surface(isDark),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-          side: BorderSide(color: borderColor, width: 1.0),
+          side: BorderSide(color: AppTokens.border(isDark), width: 1.0),
         ),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(AppTokens.spaceSm),
-              decoration: const BoxDecoration(
-                gradient: AppTokens.goldenNectarGradient,
+              decoration: BoxDecoration(
+                color: AppTokens.primaryContainer(isDark),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.alarm_on_rounded, color: Colors.white, size: 20),
+              child: Icon(
+                Icons.alarm_on_rounded,
+                color: AppTokens.sageInk(isDark),
+                size: 20,
+              ),
             ),
-            const SizedBox(width: AppTokens.spaceSm + 2),
+            const SizedBox(width: AppTokens.spaceSm + 4),
             Text(
               'Timer Finished',
-              style: AppTokens.display(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
+              style: AppTokens.display(
+                fontSize: 20,
+                color: AppTokens.textPrimary(isDark),
+              ),
             ),
           ],
         ),
         content: Text(
-          'Your $minutes-minute timer has completed. Check your food on the stove.',
-          style: AppTokens.sansBody(fontSize: 13.5, color: textSecondary),
+          'Your $minutes-minute timer is complete. Check your dish on the stove.',
+          style: AppTokens.sansBody(
+            fontSize: 13.5,
+            color: AppTokens.textSecondary(isDark),
+          ),
         ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              ),
-            ),
-            child: Text(
-              'ACKNOWLEDGE',
-              style: AppTokens.kicker(
-                fontSize: 11,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
+            child: const Text('Done'),
           ),
         ],
       ),
@@ -204,19 +186,17 @@ class _CookingModeViewState extends State<CookingModeView> {
       'crushed', 'grated', 'shredded', 'peeled', 'toasted', 'boneless',
       'skinless', 'cooked', 'warm', 'cold', 'large', 'small', 'medium',
       'whole', 'halved', 'pieces', 'thick', 'thin', 'cloves', 'stalks',
-      'with', 'from', 'into', 'over', 'optional', 'fillets', 'about'
+      'with', 'from', 'into', 'over', 'optional', 'fillets', 'about',
     };
 
     for (final ing in allIngredients) {
       final cleanFullName = ing.name.toLowerCase().replaceAll(RegExp(r'\([^)]*\)'), '').trim();
 
-      // 1. Full/base ingredient name match
       if (cleanFullName.length >= 3 && lowerStep.contains(cleanFullName)) {
         matched.add(ing);
         continue;
       }
 
-      // 2. Significant words >= 4 chars
       final words = cleanFullName
           .split(RegExp(r'[^a-zA-Z]+'))
           .where((w) => w.length >= 4 && !stopWords.contains(w));
@@ -229,21 +209,13 @@ class _CookingModeViewState extends State<CookingModeView> {
           break;
         }
       }
-      if (hasMatch) {
-        matched.add(ing);
-      }
+      if (hasMatch) matched.add(ing);
     }
     return matched;
   }
 
   void _showIngredientsSheet(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-    final textPrimary = isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight;
-    final textSecondary = isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight;
-    final borderColor = isDark ? AppTokens.borderDark : AppTokens.borderLight;
-    final modalBg = isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight;
-
     final allIngredients = widget.ingredients.isNotEmpty
         ? widget.ingredients
         : widget.recipe.recipeSpecificIngredients;
@@ -251,7 +223,7 @@ class _CookingModeViewState extends State<CookingModeView> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: modalBg,
+      backgroundColor: AppTokens.surface(isDark),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
       ),
@@ -264,7 +236,7 @@ class _CookingModeViewState extends State<CookingModeView> {
           builder: (context, scrollController) {
             return Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceMd + 4,
+                horizontal: AppTokens.spaceLg,
                 vertical: AppTokens.spaceMd,
               ),
               child: Column(
@@ -275,7 +247,7 @@ class _CookingModeViewState extends State<CookingModeView> {
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: borderColor,
+                        color: AppTokens.border(isDark),
                         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                       ),
                     ),
@@ -285,69 +257,69 @@ class _CookingModeViewState extends State<CookingModeView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'INGREDIENTS REFERENCE',
-                        style: AppTokens.kicker(
-                          fontSize: 11,
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w700,
-                          color: primaryColor,
+                        'Ingredients',
+                        style: AppTokens.display(
+                          fontSize: 21,
+                          color: AppTokens.textPrimary(isDark),
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppTokens.spaceSm + 2,
-                          vertical: 3,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
+                          color: AppTokens.primaryContainer(isDark),
                           borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                         ),
                         child: Text(
                           '${widget.recipe.servings} Servings',
                           style: AppTokens.numeral(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: primaryColor,
+                            fontSize: 11.5,
+                            color: AppTokens.sageInk(isDark),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppTokens.spaceSm + 4),
+                  const SizedBox(height: AppTokens.spaceMd),
                   Expanded(
                     child: allIngredients.isEmpty
                         ? Center(
                             child: Text(
                               'No ingredient list recorded.',
-                              style: AppTokens.sansBody(fontSize: 13, color: textSecondary),
+                              style: AppTokens.sansBody(
+                                fontSize: 13.5,
+                                color: AppTokens.textSecondary(isDark),
+                              ),
                             ),
                           )
                         : ListView.separated(
                             controller: scrollController,
                             itemCount: allIngredients.length,
-                            separatorBuilder: (_, __) => Divider(height: 1, color: borderColor),
+                            separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              color: AppTokens.border(isDark),
+                            ),
                             itemBuilder: (context, idx) {
                               final ing = allIngredients[idx];
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
                                 child: Row(
                                   children: [
                                     Container(
-                                      width: 8,
-                                      height: 8,
+                                      width: 6,
+                                      height: 6,
                                       decoration: BoxDecoration(
-                                        color: primaryColor,
+                                        color: AppTokens.primary(isDark),
                                         shape: BoxShape.circle,
                                       ),
                                     ),
-                                    const SizedBox(width: AppTokens.spaceSm + 4),
+                                    const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
                                         ing.name,
                                         style: AppTokens.sansBody(
                                           fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: textPrimary,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppTokens.textPrimary(isDark),
                                         ),
                                       ),
                                     ),
@@ -355,8 +327,7 @@ class _CookingModeViewState extends State<CookingModeView> {
                                       '${_formatQuantity(ing.quantity)} ${ing.unit}'.trim(),
                                       style: AppTokens.numeral(
                                         fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: primaryColor,
+                                        color: AppTokens.sageInk(isDark),
                                       ),
                                     ),
                                   ],
@@ -376,27 +347,28 @@ class _CookingModeViewState extends State<CookingModeView> {
 
   void _finishCooking() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-    final textPrimary = isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight;
-    final textSecondary = isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight;
-    final cardBg = isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight;
-    final borderColor = isDark ? AppTokens.borderDark : AppTokens.borderLight;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: cardBg,
+        backgroundColor: AppTokens.surface(isDark),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-          side: BorderSide(color: borderColor, width: 1.0),
+          side: BorderSide(color: AppTokens.border(isDark), width: 1.0),
         ),
         title: Text(
           'Dinner is Served',
-          style: AppTokens.display(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
+          style: AppTokens.serifItalic(
+            fontSize: 22,
+            color: AppTokens.textPrimary(isDark),
+          ),
         ),
         content: Text(
-          'Great work cooking "${widget.recipe.title}". Bon appétit!',
-          style: AppTokens.sansBody(fontSize: 13.5, color: textSecondary),
+          'Well cooked — enjoy "${widget.recipe.title}".',
+          style: AppTokens.sansBody(
+            fontSize: 13.5,
+            color: AppTokens.textSecondary(isDark),
+          ),
         ),
         actions: [
           ElevatedButton(
@@ -404,22 +376,7 @@ class _CookingModeViewState extends State<CookingModeView> {
               Navigator.pop(ctx);
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              ),
-            ),
-            child: Text(
-              'FINISH',
-              style: AppTokens.kicker(
-                fontSize: 11,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
+            child: const Text('Finish'),
           ),
         ],
       ),
@@ -429,11 +386,12 @@ class _CookingModeViewState extends State<CookingModeView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-    final textPrimary = isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight;
-    final textSecondary = isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight;
-    final borderColor = isDark ? AppTokens.borderDark : AppTokens.borderLight;
-    final cardBg = isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight;
+    final primary = AppTokens.primary(isDark);
+    final sageInk = AppTokens.sageInk(isDark);
+    final textPrimary = AppTokens.textPrimary(isDark);
+    final textSecondary = AppTokens.textSecondary(isDark);
+    final border = AppTokens.border(isDark);
+    final surface = AppTokens.surface(isDark);
 
     final instructions = widget.recipe.instructions;
     final totalSteps = instructions.length;
@@ -443,7 +401,7 @@ class _CookingModeViewState extends State<CookingModeView> {
         appBar: AppBar(title: Text(widget.recipe.title)),
         body: Center(
           child: Text(
-            'No culinary instructions available.',
+            'No cooking instructions available.',
             style: AppTokens.sansBody(fontSize: 14, color: textSecondary),
           ),
         ),
@@ -452,135 +410,123 @@ class _CookingModeViewState extends State<CookingModeView> {
 
     final currentInstruction = instructions[_currentStepIndex];
     final allDetectedMins = _detectAllMinutesInText(currentInstruction);
+    final timerProgress = (_timerTotalSeconds > 0)
+        ? (_timerSecondsRemaining / _timerTotalSeconds)
+        : 0.0;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           widget.recipe.title,
-          style: AppTokens.display(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary),
+          style: AppTokens.display(fontSize: 18, color: textPrimary),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.list_alt_rounded),
+            icon: const Icon(Icons.list_alt_rounded, size: 21),
             tooltip: 'Ingredients Sheet',
             onPressed: () => _showIngredientsSheet(context),
           ),
+          const SizedBox(width: AppTokens.spaceXs),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Linear Step Progress with Sunburst Styling
+            // Whisper-thin eucalyptus progress line
             LinearProgressIndicator(
-              value: (totalSteps > 0) ? (_currentStepIndex + 1) / totalSteps : 0.0,
-              backgroundColor: borderColor,
-              valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-              minHeight: 4,
+              value: (_currentStepIndex + 1) / totalSteps,
+              backgroundColor: border,
+              valueColor: AlwaysStoppedAnimation<Color>(primary),
+              minHeight: 3,
             ),
 
-            // Step Header Sub-bar
+            // Quiet Step Sub-bar
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceMd,
-                vertical: AppTokens.spaceSm + 2,
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.spaceLg,
+                AppTokens.spaceMd,
+                AppTokens.spaceLg,
+                AppTokens.spaceSm,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTokens.spaceSm + 4,
-                      vertical: AppTokens.spaceXs + 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                    ),
-                    child: Text(
-                      'STEP ${_currentStepIndex + 1} OF $totalSteps',
-                      style: AppTokens.kicker(
-                        fontSize: 11,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w700,
-                        color: primaryColor,
-                      ),
+                  Text(
+                    'STEP ${_currentStepIndex + 1} OF $totalSteps',
+                    style: AppTokens.kicker(
+                      fontSize: 11,
+                      color: sageInk,
                     ),
                   ),
                   TextButton.icon(
                     onPressed: () => _showIngredientsSheet(context),
-                    icon: Icon(Icons.menu_book_rounded, size: 16, color: primaryColor),
+                    icon: Icon(Icons.menu_book_outlined, size: 16, color: sageInk),
                     label: Text(
                       'Ingredients',
-                      style: AppTokens.display(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: primaryColor,
+                      style: AppTokens.sansBody(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: sageInk,
                       ),
+                    ),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Step Card PageView
+            // Glare-Free Porcelain Step Card
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: totalSteps,
-                onPageChanged: (idx) {
-                  setState(() => _currentStepIndex = idx);
-                },
+                onPageChanged: (idx) => setState(() => _currentStepIndex = idx),
                 itemBuilder: (context, index) {
                   final text = instructions[index];
+                  final stepNumber = (index + 1).toString().padLeft(2, '0');
                   return Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppTokens.spaceMd,
+                      horizontal: AppTokens.spaceLg,
                       vertical: AppTokens.spaceXs,
                     ),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: cardBg,
+                        color: surface,
                         borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                        border: Border.all(color: borderColor, width: 1.0),
-                        boxShadow: AppTokens.cardShadow,
+                        border: Border.all(color: border, width: 1.0),
+                        boxShadow: AppTokens.paperShadow(isDark),
                       ),
                       padding: const EdgeInsets.all(AppTokens.spaceLg),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
                             children: [
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: const BoxDecoration(
-                                  gradient: AppTokens.sunburstGradient,
-                                  shape: BoxShape.circle,
-                                  boxShadow: AppTokens.sunGlowShadow,
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '${index + 1}',
-                                  style: AppTokens.numeral(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                              Text(
+                                stepNumber,
+                                style: AppTokens.serifItalic(
+                                  fontSize: 28,
+                                  color: sageInk,
                                 ),
                               ),
-                              const SizedBox(width: AppTokens.spaceSm + 2),
+                              const SizedBox(width: 10),
                               Text(
                                 'Action Step',
                                 style: AppTokens.kicker(
-                                  fontSize: 11,
-                                  letterSpacing: 1.2,
-                                  fontWeight: FontWeight.w700,
-                                  color: primaryColor,
+                                  fontSize: 10.5,
+                                  color: textSecondary,
                                 ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: AppTokens.spaceMd),
+                          Divider(height: 1, color: border),
                           const SizedBox(height: AppTokens.spaceLg),
                           Expanded(
                             child: SingleChildScrollView(
@@ -589,10 +535,10 @@ class _CookingModeViewState extends State<CookingModeView> {
                                 children: [
                                   Text(
                                     text,
-                                    style: AppTokens.display(
-                                      fontSize: 19,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.45,
+                                    style: AppTokens.sansBody(
+                                      fontSize: 19.5,
+                                      fontWeight: FontWeight.w400,
+                                      height: 1.55,
                                       color: textPrimary,
                                     ),
                                   ),
@@ -604,37 +550,44 @@ class _CookingModeViewState extends State<CookingModeView> {
                                       return Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const SizedBox(height: AppTokens.spaceMd),
+                                          const SizedBox(height: AppTokens.spaceLg),
+                                          Text(
+                                            'FOR THIS STEP',
+                                            style: AppTokens.kicker(
+                                              fontSize: 9.5,
+                                              color: AppTokens.textMuted(isDark),
+                                            ),
+                                          ),
+                                          const SizedBox(height: AppTokens.spaceSm),
                                           Wrap(
-                                            spacing: 6,
-                                            runSpacing: 6,
+                                            spacing: 8,
+                                            runSpacing: 8,
                                             children: stepIngredients.map((ing) {
                                               final qtyStr = _formatQuantity(ing.quantity);
                                               final label = qtyStr.isNotEmpty
-                                                  ? '• ${ing.name}: $qtyStr ${ing.unit}'
-                                                  : '• ${ing.name}';
+                                                  ? '${ing.name} · $qtyStr ${ing.unit}'.trim()
+                                                  : ing.name;
 
                                               return Container(
                                                 padding: const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                  vertical: 5,
+                                                  horizontal: 11,
+                                                  vertical: 6,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: isDark
-                                                      ? AppTokens.primaryContainerDark
-                                                      : AppTokens.primaryContainerLight,
+                                                  color: AppTokens.surfaceWarm(isDark),
                                                   borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                                                   border: Border.all(
-                                                    color: isDark ? AppTokens.borderDark : AppTokens.borderLight,
+                                                    color: AppTokens.sandBorder(isDark),
                                                     width: 1.0,
                                                   ),
                                                 ),
                                                 child: Text(
                                                   label,
                                                   style: AppTokens.sansBody(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: AppTokens.sandInk(isDark),
+                                                    height: 1.1,
                                                   ),
                                                 ),
                                               );
@@ -656,62 +609,55 @@ class _CookingModeViewState extends State<CookingModeView> {
               ),
             ),
 
-            // Active Kitchen Timer Banner (if running or set)
+            // Calm Sculpted Countertop Timer Strip
             if (_timerSecondsRemaining > 0 || _isTimerRunning) ...[
               Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: AppTokens.spaceMd,
-                  vertical: AppTokens.spaceXs + 2,
+                margin: const EdgeInsets.fromLTRB(
+                  AppTokens.spaceLg,
+                  AppTokens.spaceSm,
+                  AppTokens.spaceLg,
+                  AppTokens.spaceXs,
                 ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppTokens.spaceMd,
-                  vertical: AppTokens.spaceSm + 2,
+                  vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: isDark ? AppTokens.accentSunTintDark : AppTokens.accentSunTintLight,
+                  color: AppTokens.surfaceWarm(isDark),
                   borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                  border: Border.all(
-                    color: AppTokens.accentSun.withValues(alpha: isDark ? 0.35 : 0.4),
-                    width: 1.0,
-                  ),
-                  boxShadow: AppTokens.cardShadow,
+                  border: Border.all(color: AppTokens.sandBorder(isDark), width: 1.0),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(AppTokens.spaceSm),
-                          decoration: const BoxDecoration(
-                            gradient: AppTokens.goldenNectarGradient,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.timer_rounded,
-                            color: Colors.white,
-                            size: 20,
+                        TimerProgressRing(
+                          progress: timerProgress,
+                          trackColor: border,
+                          progressColor: primary,
+                          size: 46,
+                          strokeWidth: 3.0,
+                          child: Icon(
+                            Icons.timer_outlined,
+                            size: 18,
+                            color: sageInk,
                           ),
                         ),
-                        const SizedBox(width: AppTokens.spaceSm + 4),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'ACTIVE KITCHEN TIMER',
-                                style: AppTokens.kicker(
-                                  fontSize: 10,
-                                  letterSpacing: 1.2,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? AppTokens.accentSunDark : AppTokens.accentSun,
-                                ),
+                                'KITCHEN TIMER',
+                                style: AppTokens.kicker(fontSize: 9.5, color: sageInk),
                               ),
                               Text(
                                 '${(_timerSecondsRemaining ~/ 60).toString().padLeft(2, '0')}:${(_timerSecondsRemaining % 60).toString().padLeft(2, '0')}',
                                 style: AppTokens.numeral(
                                   fontSize: 24,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w600,
                                   color: textPrimary,
                                 ),
                               ),
@@ -720,19 +666,16 @@ class _CookingModeViewState extends State<CookingModeView> {
                         ),
                         IconButton(
                           icon: Icon(
-                            _isTimerRunning ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded,
-                            color: AppTokens.accentSun,
-                            size: 30,
+                            _isTimerRunning
+                                ? Icons.pause_circle_filled_rounded
+                                : Icons.play_circle_filled_rounded,
+                            color: primary,
+                            size: 32,
                           ),
                           onPressed: _pauseResumeTimer,
                         ),
                         IconButton(
-                          icon: Icon(Icons.add_alarm_rounded, color: textSecondary, size: 20),
-                          tooltip: '+1 min',
-                          onPressed: _addMinuteToTimer,
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close_rounded, color: textSecondary, size: 18),
+                          icon: Icon(Icons.close_rounded, color: textSecondary, size: 19),
                           tooltip: 'Cancel Timer',
                           onPressed: _resetTimer,
                         ),
@@ -743,51 +686,45 @@ class _CookingModeViewState extends State<CookingModeView> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          'Quick Add:',
-                          style: AppTokens.kicker(
-                            fontSize: 9.5,
-                            color: textSecondary,
-                          ),
+                          'Extend:',
+                          style: AppTokens.sansBody(fontSize: 11, color: textSecondary),
                         ),
                         const SizedBox(width: 6),
-                        ...[1, 3, 5, 10].map((extra) => Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                            onTap: () {
-                              setState(() {
-                                _timerSecondsRemaining += extra * 60;
-                                _timerTotalSeconds += extra * 60;
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (isDark ? AppTokens.accentSunDark : AppTokens.accentSun).withValues(alpha: 0.15),
+                        ...[1, 3, 5].map((extra) => Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: InkWell(
                                 borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                              ),
-                              child: Text(
-                                '+$extra m',
-                                style: AppTokens.numeral(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? AppTokens.accentSunDark : AppTokens.accentSun,
+                                onTap: () => _addMinutesToTimer(extra),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: surface,
+                                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                                    border: Border.all(color: border),
+                                  ),
+                                  child: Text(
+                                    '+$extra m',
+                                    style: AppTokens.numeral(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: sageInk,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        )),
+                            )),
                       ],
                     ),
                   ],
                 ),
               ),
             ] else if (allDetectedMins.isNotEmpty) ...[
-              // Quick Detected Timer Button(s)
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTokens.spaceMd,
-                  vertical: AppTokens.spaceXs,
+                padding: const EdgeInsets.fromLTRB(
+                  AppTokens.spaceLg,
+                  AppTokens.spaceSm,
+                  AppTokens.spaceLg,
+                  AppTokens.spaceXs,
                 ),
                 child: Wrap(
                   spacing: 8,
@@ -795,24 +732,19 @@ class _CookingModeViewState extends State<CookingModeView> {
                   children: allDetectedMins.map((m) {
                     return OutlinedButton.icon(
                       onPressed: () => _startTimer(m),
-                      icon: const Icon(Icons.alarm_rounded, size: 18, color: AppTokens.accentSun),
+                      icon: Icon(Icons.timer_outlined, size: 17, color: sageInk),
                       label: Text(
                         'Start $m min Timer',
-                        style: AppTokens.display(
+                        style: AppTokens.sansBody(
                           fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? AppTokens.accentSunDark : AppTokens.accentSun,
+                          fontWeight: FontWeight.w600,
+                          color: sageInk,
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: AppTokens.accentSun.withValues(alpha: isDark ? 0.4 : 0.6),
-                          width: 1.0,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppTokens.spaceSm + 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                        ),
+                        backgroundColor: AppTokens.primaryContainer(isDark),
+                        side: BorderSide(color: primary.withValues(alpha: 0.35)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       ),
                     );
                   }).toList(),
@@ -822,9 +754,11 @@ class _CookingModeViewState extends State<CookingModeView> {
 
             // Bottom Navigation Controls
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceMd,
-                vertical: AppTokens.spaceSm + 4,
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.spaceLg,
+                AppTokens.spaceSm + 4,
+                AppTokens.spaceLg,
+                AppTokens.spaceMd,
               ),
               child: Row(
                 children: [
@@ -832,73 +766,45 @@ class _CookingModeViewState extends State<CookingModeView> {
                     OutlinedButton.icon(
                       onPressed: () {
                         _pageController.previousPage(
-                          duration: const Duration(milliseconds: 250),
+                          duration: const Duration(milliseconds: 240),
                           curve: Curves.easeInOut,
                         );
                       },
                       icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                      label: Text(
-                        'BACK',
-                        style: AppTokens.kicker(
-                          fontSize: 11,
-                          letterSpacing: 1.1,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      label: const Text('Back'),
                       style: OutlinedButton.styleFrom(
+                        backgroundColor: surface,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppTokens.spaceMd,
-                          vertical: AppTokens.spaceSm + 4,
-                        ),
-                        side: BorderSide(color: borderColor),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                          vertical: 15,
                         ),
                       ),
                     ),
                     const SizedBox(width: AppTokens.spaceSm + 2),
                   ],
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppTokens.sunburstGradient,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                        boxShadow: AppTokens.sunGlowShadow,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        if (_currentStepIndex < totalSteps - 1) {
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeInOut,
+                          );
+                        } else {
+                          _finishCooking();
+                        }
+                      },
+                      icon: Icon(
+                        _currentStepIndex < totalSteps - 1
+                            ? Icons.arrow_forward_rounded
+                            : Icons.check_rounded,
+                        size: 18,
                       ),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          if (_currentStepIndex < totalSteps - 1) {
-                            _pageController.nextPage(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeInOut,
-                            );
-                          } else {
-                            _finishCooking();
-                          }
-                        },
-                        icon: Icon(
-                          _currentStepIndex < totalSteps - 1 ? Icons.arrow_forward_rounded : Icons.check_circle_rounded,
-                          size: 18,
-                        ),
-                        label: Text(
-                          _currentStepIndex < totalSteps - 1 ? 'Next Step' : 'Finish Cooking',
-                          style: AppTokens.display(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                            color: Colors.white,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm + 4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                          ),
-                          elevation: 0,
-                        ),
+                      label: Text(
+                        _currentStepIndex < totalSteps - 1 ? 'Next Step' : 'Finish Cooking',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                     ),
                   ),

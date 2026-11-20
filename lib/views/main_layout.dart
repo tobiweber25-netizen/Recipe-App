@@ -24,8 +24,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       body: IndexedStack(
@@ -34,20 +33,13 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight,
+          color: AppTokens.surface(isDark),
           border: Border(
             top: BorderSide(
-              color: isDark ? AppTokens.borderDark : AppTokens.borderLight,
+              color: AppTokens.border(isDark),
               width: 1.0,
             ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isDark ? Colors.black.withValues(alpha: 0.25) : const Color(0x0A000000),
-              blurRadius: 12,
-              offset: const Offset(0, -3),
-            ),
-          ],
         ),
         child: SafeArea(
           top: false,
@@ -55,7 +47,7 @@ class _MainLayoutState extends State<MainLayout> {
             backgroundColor: Colors.transparent,
             selectedIndex: _currentIndex,
             elevation: 0,
-            height: 64,
+            height: 66,
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             onDestinationSelected: (index) {
               setState(() {
@@ -64,23 +56,23 @@ class _MainLayoutState extends State<MainLayout> {
             },
             destinations: const [
               NavigationDestination(
-                icon: Icon(Icons.wb_sunny_outlined, size: 22),
-                selectedIcon: Icon(Icons.wb_sunny_rounded, size: 22),
+                icon: Icon(Icons.calendar_today_outlined, size: 20),
+                selectedIcon: Icon(Icons.calendar_today_rounded, size: 20),
                 label: 'Planner',
               ),
               NavigationDestination(
-                icon: Icon(Icons.menu_book_outlined, size: 22),
-                selectedIcon: Icon(Icons.menu_book_rounded, size: 22),
+                icon: Icon(Icons.menu_book_outlined, size: 21),
+                selectedIcon: Icon(Icons.menu_book_rounded, size: 21),
                 label: 'Library',
               ),
               NavigationDestination(
-                icon: Icon(Icons.shopping_bag_outlined, size: 22),
-                selectedIcon: Icon(Icons.shopping_bag_rounded, size: 22),
+                icon: Icon(Icons.shopping_bag_outlined, size: 21),
+                selectedIcon: Icon(Icons.shopping_bag_rounded, size: 21),
                 label: 'Groceries',
               ),
               NavigationDestination(
-                icon: Icon(Icons.bookmark_outline_rounded, size: 22),
-                selectedIcon: Icon(Icons.bookmark_rounded, size: 22),
+                icon: Icon(Icons.bookmark_border_rounded, size: 21),
+                selectedIcon: Icon(Icons.bookmark_rounded, size: 21),
                 label: 'Saved',
               ),
             ],

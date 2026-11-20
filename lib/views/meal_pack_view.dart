@@ -78,10 +78,62 @@ class _MealPackViewState extends State<MealPackView> {
     }
   }
 
+  void _shareRecipe(Recipe recipe) {
+    if (recipe.instructions.isEmpty) return;
+    final scaleFactor = (recipe.servings > 0) ? (_currentServings / recipe.servings) : 1.0;
+    final sb = StringBuffer();
+    sb.writeln('${recipe.title}\n');
+    if (recipe.description.isNotEmpty) {
+      sb.writeln('${recipe.description}\n');
+    }
+    sb.writeln('Cook Time: ${recipe.cookTimeMinutes} min | Servings: $_currentServings | ${recipe.budgetTier}\n');
+    sb.writeln('Ingredients:');
+    if (recipe.recipeSpecificIngredients.isEmpty) {
+      sb.writeln('- Pantry staples & seasonal fresh produce');
+    } else {
+      for (final ing in recipe.recipeSpecificIngredients) {
+        final formattedQty = _formatQuantity(ing.quantity * scaleFactor, ing.unit);
+        sb.writeln(formattedQty.isNotEmpty ? '- ${ing.name}: $formattedQty' : '- ${ing.name}');
+      }
+    }
+    if (recipe.chefTip.isNotEmpty) {
+      sb.writeln("\nChef's Note: ${recipe.chefTip}");
+    }
+    sb.writeln('\nMethod:');
+    for (int i = 0; i < recipe.instructions.length; i++) {
+      sb.writeln('${i + 1}. ${recipe.instructions[i]}');
+    }
+    SharePlus.instance.share(
+      ShareParams(text: sb.toString(), subject: recipe.title),
+    );
+  }
+
+  void _openCookingMode(Recipe recipe) {
+    final scaleFactor = (recipe.servings > 0) ? (_currentServings / recipe.servings) : 1.0;
+    final scaledIngredients = recipe.recipeSpecificIngredients.map((ing) {
+      return ing.copyWith(quantity: ing.quantity * scaleFactor);
+    }).toList();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CookingModeView(
+          recipe: recipe.copyWith(servings: _currentServings),
+          ingredients: scaledIngredients,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = AppTokens.primary(isDark);
+    final sageInk = AppTokens.sageInk(isDark);
+    final textPrimary = AppTokens.textPrimary(isDark);
+    final textSecondary = AppTokens.textSecondary(isDark);
+    final border = AppTokens.border(isDark);
+    final surface = AppTokens.surface(isDark);
 
     return Consumer<MealPackProvider>(
       builder: (context, provider, child) {
@@ -91,156 +143,119 @@ class _MealPackViewState extends State<MealPackView> {
         return Scaffold(
           appBar: AppBar(
             title: Text(
-              'Recipe Details',
-              style: AppTokens.display(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
-              ),
+              'Recipe',
+              style: AppTokens.display(fontSize: 19, color: textPrimary),
             ),
             actions: [
               IconButton(
                 icon: Icon(
-                  isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
-                  color: isSaved
-                      ? (isDark ? AppTokens.primaryDark : AppTokens.primaryLight)
-                      : (isDark ? AppTokens.textMutedDark : AppTokens.textMutedLight),
+                  isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                  color: isSaved ? primary : textSecondary,
                 ),
-                onPressed: () {
-                  provider.toggleSaveRecipe(recipe);
-                },
+                onPressed: () => provider.toggleSaveRecipe(recipe),
                 tooltip: isSaved ? 'Unsave Recipe' : 'Save Recipe',
               ),
               IconButton(
-                icon: const Icon(Icons.share_outlined),
-                onPressed: () {
-                  if (recipe.instructions.isEmpty) return;
-                  final scaleFactor = (recipe.servings > 0) ? (_currentServings / recipe.servings) : 1.0;
-                  final sb = StringBuffer();
-                  sb.writeln('🍳 Recipe: ${recipe.title}\n');
-                  if (recipe.description.isNotEmpty) {
-                    sb.writeln('${recipe.description}\n');
-                  }
-                  sb.writeln('⏱ Cook Time: ${recipe.cookTimeMinutes} min | 🍽 Servings: $_currentServings | Tier: ${recipe.budgetTier}\n');
-                  sb.writeln('🛒 Ingredients:');
-                  if (recipe.recipeSpecificIngredients.isEmpty) {
-                    sb.writeln('- Pantry staples & seasonal fresh produce');
-                  } else {
-                    for (var ing in recipe.recipeSpecificIngredients) {
-                      final formattedQty = _formatQuantity(ing.quantity * scaleFactor, ing.unit);
-                      sb.writeln(formattedQty.isNotEmpty ? '• ${ing.name}: $formattedQty' : '• ${ing.name}');
-                    }
-                  }
-                  if (recipe.chefTip.isNotEmpty) {
-                    sb.writeln('\n💡 Chef Tip: ${recipe.chefTip}');
-                  }
-                  sb.writeln('\n📋 Step-by-Step Instructions:');
-                  for (int i = 0; i < recipe.instructions.length; i++) {
-                    sb.writeln('${i + 1}. ${recipe.instructions[i]}');
-                  }
-                  SharePlus.instance.share(
-                    ShareParams(
-                      text: sb.toString(),
-                      subject: recipe.title,
-                    ),
-                  );
-                },
+                icon: const Icon(Icons.share_outlined, size: 20),
+                onPressed: () => _shareRecipe(recipe),
                 tooltip: 'Share Recipe',
               ),
+              const SizedBox(width: AppTokens.spaceXs),
             ],
           ),
           body: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.spaceLg,
+              AppTokens.spaceSm,
+              AppTokens.spaceLg,
+              AppTokens.spaceXxl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Recipe Title & Summary Card
+                // Cookbook Spread Header Sheet
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(AppTokens.spaceLg),
                   decoration: BoxDecoration(
-                    color: isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight,
+                    color: surface,
                     borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                    border: Border.all(
-                      color: isDark ? AppTokens.borderDark : AppTokens.borderLight,
-                      width: 1.0,
-                    ),
-                    boxShadow: AppTokens.cardShadow,
+                    border: Border.all(color: border, width: 1.0),
+                    boxShadow: AppTokens.paperShadow(isDark),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Kicker Meta Row
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Expanded(
-                            child: Wrap(
-                              spacing: AppTokens.spaceXs + 2,
-                              runSpacing: AppTokens.spaceXs,
-                              children: [
-                                Text(
-                                  recipe.category.isNotEmpty ? recipe.category : recipe.cuisine,
-                                  style: AppTokens.kicker(
-                                    fontSize: 10.5,
-                                    color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
-                                  ),
-                                ),
-                                Text('•', style: AppTokens.kicker(color: (isDark ? AppTokens.primaryDark : AppTokens.primaryLight).withValues(alpha: 0.5))),
-                                Text(
-                                  '${recipe.cookTimeMinutes} mins',
-                                  style: AppTokens.kicker(
-                                    fontSize: 10.5,
-                                    color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
-                                  ),
-                                ),
-                                Text('•', style: AppTokens.kicker(color: (isDark ? AppTokens.primaryDark : AppTokens.primaryLight).withValues(alpha: 0.5))),
-                                Text(
-                                  recipe.budgetTier,
-                                  style: AppTokens.kicker(
-                                    fontSize: 10.5,
-                                    color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          Text(
+                            recipe.category.isNotEmpty ? recipe.category : recipe.cuisine,
+                            style: AppTokens.kicker(fontSize: 10.5, color: sageInk),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
-                              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                            ),
-                            child: Text(
-                              '$_currentServings PORTIONS',
-                              style: AppTokens.kicker(
-                                fontSize: 9.5,
-                                color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
-                              ),
-                            ),
+                          Text('·', style: AppTokens.kicker(color: AppTokens.textMuted(isDark))),
+                          Text(
+                            '${recipe.cookTimeMinutes} mins',
+                            style: AppTokens.kicker(fontSize: 10.5, color: textSecondary),
+                          ),
+                          Text('·', style: AppTokens.kicker(color: AppTokens.textMuted(isDark))),
+                          Text(
+                            recipe.budgetTier,
+                            style: AppTokens.kicker(fontSize: 10.5, color: textSecondary),
                           ),
                         ],
                       ),
                       const SizedBox(height: AppTokens.spaceSm + 4),
-
-                      // Title
                       Text(
                         recipe.title,
-                        style: AppTokens.display(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
-                          height: 1.25,
+                        style: AppTokens.serifItalic(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w500,
+                          color: textPrimary,
+                          height: 1.18,
+                          letterSpacing: -0.4,
                         ),
                       ),
                       if (recipe.description.isNotEmpty) ...[
-                        const SizedBox(height: AppTokens.spaceSm),
+                        const SizedBox(height: AppTokens.spaceSm + 2),
                         Text(
                           recipe.description,
                           style: AppTokens.sansBody(
                             fontSize: 14,
-                            color: isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight,
-                            height: 1.45,
+                            color: textSecondary,
+                            height: 1.55,
                           ),
+                        ),
+                      ],
+                      if (recipe.instructions.isNotEmpty) ...[
+                        const SizedBox(height: AppTokens.spaceMd + 2),
+                        Divider(height: 1, color: border),
+                        const SizedBox(height: AppTokens.spaceMd),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'SERVINGS',
+                              style: AppTokens.kicker(fontSize: 10.5, color: textSecondary),
+                            ),
+                            SegmentedButton<int>(
+                              segments: const [
+                                ButtonSegment(value: 2, label: Text('2P')),
+                                ButtonSegment(value: 4, label: Text('4P')),
+                                ButtonSegment(value: 6, label: Text('6P')),
+                              ],
+                              selected: {_currentServings},
+                              onSelectionChanged: (newSelection) {
+                                setState(() => _currentServings = newSelection.first);
+                              },
+                              style: const ButtonStyle(
+                                visualDensity: VisualDensity.compact,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],
@@ -254,24 +269,16 @@ class _MealPackViewState extends State<MealPackView> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 48.0),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3.0,
-                              color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
-                            ),
+                            width: 40,
+                            height: 40,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: primary),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
                           Text(
-                            'Writing Chef Recipe...',
-                            style: AppTokens.display(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
-                            ),
+                            'Writing your recipe...',
+                            style: AppTokens.serifItalic(fontSize: 18, color: textPrimary),
                           ),
                         ],
                       ),
@@ -282,37 +289,29 @@ class _MealPackViewState extends State<MealPackView> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 36.0),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             Icons.error_outline_rounded,
-                            size: 40,
-                            color: isDark ? AppTokens.errorDark : AppTokens.errorLight,
+                            size: 36,
+                            color: AppTokens.error(isDark),
                           ),
                           const SizedBox(height: AppTokens.spaceMd),
                           Text(
                             'Could Not Load Recipe Steps',
-                            style: AppTokens.display(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
-                            ),
+                            style: AppTokens.display(fontSize: 19, color: textPrimary),
                           ),
                           if (_loadError != null) ...[
                             const SizedBox(height: AppTokens.spaceSm),
                             Text(
                               _loadError!,
                               textAlign: TextAlign.center,
-                              style: AppTokens.sansBody(
-                                fontSize: 13,
-                                color: isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight,
-                              ),
+                              style: AppTokens.sansBody(fontSize: 13, color: textSecondary),
                             ),
                           ],
                           const SizedBox(height: AppTokens.spaceMd),
                           ElevatedButton.icon(
                             onPressed: _checkAndLoadDetails,
-                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            icon: const Icon(Icons.refresh_rounded, size: 17),
                             label: const Text('Try Again'),
                           ),
                         ],
@@ -320,125 +319,61 @@ class _MealPackViewState extends State<MealPackView> {
                     ),
                   )
                 else ...[
-                  // Chef's Golden Tip Box
+                  // Warm Parchment Chef's Note Margin Callout
                   if (recipe.chefTip.isNotEmpty) ...[
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(AppTokens.spaceMd),
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        color: isDark ? AppTokens.accentSunTintDark : AppTokens.accentSunTintLight,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                        color: AppTokens.sandTint(isDark),
+                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                         border: Border.all(
-                          color: AppTokens.accentSun.withValues(alpha: isDark ? 0.35 : 0.4),
+                          color: AppTokens.sandBorder(isDark),
                           width: 1.0,
                         ),
-                        boxShadow: AppTokens.cardShadow,
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(AppTokens.spaceSm),
-                            decoration: const BoxDecoration(
-                              gradient: AppTokens.goldenNectarGradient,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.lightbulb_rounded,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: AppTokens.spaceSm + 4),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Chef's Golden Tip",
-                                  style: AppTokens.kicker(
-                                    fontSize: 11,
-                                    color: isDark ? AppTokens.accentSunDark : const Color(0xFFB45309),
-                                  ),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(width: 3.5, color: primary),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(AppTokens.spaceMd + 2),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "CHEF'S NOTE",
+                                      style: AppTokens.kicker(
+                                        fontSize: 10,
+                                        color: sageInk,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      recipe.chefTip,
+                                      style: AppTokens.sansBody(
+                                        fontSize: 13.5,
+                                        color: AppTokens.sandInk(isDark),
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  recipe.chefTip,
-                                  style: AppTokens.sansBody(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: isDark ? AppTokens.textPrimaryDark : const Color(0xFF78350F),
-                                    height: 1.45,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppTokens.spaceLg),
                   ],
 
-                  // Servings Scaler
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                      border: Border.all(
-                        color: isDark ? AppTokens.borderDark : AppTokens.borderLight,
-                        width: 1.0,
-                      ),
-                      boxShadow: AppTokens.cardShadow,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.people_alt_outlined,
-                              size: 20,
-                              color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
-                            ),
-                            const SizedBox(width: AppTokens.spaceSm),
-                            Text(
-                              'Servings',
-                              style: AppTokens.display(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SegmentedButton<int>(
-                          segments: const [
-                            ButtonSegment(value: 2, label: Text('2P')),
-                            ButtonSegment(value: 4, label: Text('4P')),
-                            ButtonSegment(value: 6, label: Text('6P')),
-                          ],
-                          selected: {_currentServings},
-                          onSelectionChanged: (newSelection) {
-                            setState(() {
-                              _currentServings = newSelection.first;
-                            });
-                          },
-                          style: const ButtonStyle(
-                            visualDensity: VisualDensity.compact,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppTokens.spaceLg),
-
-                  // Ingredients Section
+                  // Ingredients Checklist Sheet
                   Builder(
                     builder: (context) {
-                      final double scaleFactor = (recipe.servings > 0) ? (_currentServings / recipe.servings) : 1.0;
+                      final scaleFactor = (recipe.servings > 0) ? (_currentServings / recipe.servings) : 1.0;
                       final scaledIngredients = recipe.recipeSpecificIngredients.map((ing) {
                         return ing.copyWith(quantity: ing.quantity * scaleFactor);
                       }).toList();
@@ -451,148 +386,140 @@ class _MealPackViewState extends State<MealPackView> {
                           .toList();
 
                       return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
                             children: [
                               Text(
                                 'Ingredients Checklist',
-                                style: AppTokens.display(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
-                                ),
+                                style: AppTokens.display(fontSize: 20, color: textPrimary),
                               ),
                               Text(
                                 '${displayIngredients.length} items (${_currentServings}P)',
-                                style: AppTokens.kicker(
-                                  fontSize: 10.5,
-                                  color: isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight,
+                                style: AppTokens.numeral(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: textSecondary,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: AppTokens.spaceMd),
-                          displayIngredients.isEmpty
-                              ? Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
-                                  child: Text(
-                                    'All ingredients provided via pantry staples and seasonal fresh produce.',
-                                    style: AppTokens.sansBody(
-                                      color: isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight,
+                          const SizedBox(height: AppTokens.spaceSm + 4),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: surface,
+                              borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                              border: Border.all(color: border, width: 1.0),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppTokens.spaceMd,
+                              vertical: AppTokens.spaceXs,
+                            ),
+                            child: displayIngredients.isEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceMd),
+                                    child: Text(
+                                      'Uses pantry staples and shared seasonal fresh produce.',
+                                      style: AppTokens.sansBody(color: textSecondary),
                                     ),
-                                  ),
-                                )
-                              : Wrap(
-                                  spacing: AppTokens.spaceSm,
-                                  runSpacing: AppTokens.spaceSm,
-                                  children: displayIngredients.map((ing) {
-                                    final localKey = '${ing.name}_${ing.unit}';
-                                    final isChecked = ing.id != null
-                                        ? ing.isChecked
-                                        : _localCheckedIngredients.contains(localKey);
-                                    final formattedQty = _formatQuantity(ing.quantity, ing.unit);
-                                    return InkWell(
-                                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                      onTap: () {
-                                        if (ing.id != null) {
-                                          provider.toggleIngredientChecked(ing, !isChecked);
-                                        } else {
-                                          setState(() {
-                                            if (isChecked) {
-                                              _localCheckedIngredients.remove(localKey);
-                                            } else {
-                                              _localCheckedIngredients.add(localKey);
-                                            }
-                                          });
-                                        }
-                                      },
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 150),
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: isChecked
-                                              ? (isDark ? AppTokens.accentMintTintDark : AppTokens.accentMintTintLight)
-                                              : (isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight),
-                                          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                          border: Border.all(
-                                            color: isChecked
-                                                ? (isDark ? AppTokens.accentMintDark : AppTokens.accentMintLight)
-                                                : (isDark ? AppTokens.borderDark : AppTokens.borderLight),
-                                            width: 1.0,
-                                          ),
-                                          boxShadow: AppTokens.cardShadow,
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              isChecked ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                                              size: 16,
-                                              color: isChecked
-                                                  ? (isDark ? AppTokens.accentMintDark : AppTokens.accentMintLight)
-                                                  : (isDark ? AppTokens.textMutedDark : AppTokens.textMutedLight),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              '${ing.name} ',
-                                              style: AppTokens.sansBody(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: isChecked
-                                                    ? (isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight)
-                                                    : (isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight),
-                                              ).copyWith(
-                                                decoration: isChecked ? TextDecoration.lineThrough : null,
-                                              ),
-                                            ),
-                                            if (formattedQty.isNotEmpty)
-                                              Text(
-                                                '($formattedQty)',
-                                                style: AppTokens.numeral(
-                                                  fontSize: 11.5,
-                                                  color: isChecked
-                                                      ? (isDark ? AppTokens.textMutedDark : AppTokens.textMutedLight)
-                                                      : (isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight),
+                                  )
+                                : Column(
+                                    children: [
+                                      for (int i = 0; i < displayIngredients.length; i++) ...[
+                                        Builder(
+                                          builder: (context) {
+                                            final ing = displayIngredients[i];
+                                            final localKey = '${ing.name}_${ing.unit}';
+                                            final isChecked = ing.id != null
+                                                ? ing.isChecked
+                                                : _localCheckedIngredients.contains(localKey);
+                                            final formattedQty = _formatQuantity(ing.quantity, ing.unit);
+
+                                            return InkWell(
+                                              onTap: () {
+                                                if (ing.id != null) {
+                                                  provider.toggleIngredientChecked(ing, !isChecked);
+                                                } else {
+                                                  setState(() {
+                                                    if (isChecked) {
+                                                      _localCheckedIngredients.remove(localKey);
+                                                    } else {
+                                                      _localCheckedIngredients.add(localKey);
+                                                    }
+                                                  });
+                                                }
+                                              },
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      isChecked
+                                                          ? Icons.check_circle_rounded
+                                                          : Icons.radio_button_unchecked_rounded,
+                                                      size: 19,
+                                                      color: isChecked
+                                                          ? primary
+                                                          : (isDark
+                                                              ? AppTokens.borderHoverDark
+                                                              : AppTokens.borderHoverLight),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: Text(
+                                                        ing.name,
+                                                        style: AppTokens.sansBody(
+                                                          fontSize: 14,
+                                                          fontWeight: isChecked ? FontWeight.w400 : FontWeight.w500,
+                                                          color: isChecked
+                                                              ? AppTokens.textMuted(isDark)
+                                                              : textPrimary,
+                                                        ).copyWith(
+                                                          decoration: isChecked
+                                                              ? TextDecoration.lineThrough
+                                                              : null,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (formattedQty.isNotEmpty) ...[
+                                                      const SizedBox(width: 12),
+                                                      Text(
+                                                        formattedQty,
+                                                        style: AppTokens.numeral(
+                                                          fontSize: 12.5,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: isChecked
+                                                              ? AppTokens.textMuted(isDark)
+                                                              : sageInk,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
                                                 ),
                                               ),
-                                          ],
+                                            );
+                                          },
                                         ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
+                                        if (i < displayIngredients.length - 1)
+                                          Divider(height: 1, color: border),
+                                      ],
+                                    ],
+                                  ),
+                          ),
                           const SizedBox(height: AppTokens.spaceLg),
 
-                          // Start Cooking Mode Primary Action Banner
-                          Container(
+                          // Start Cooking Mode CTA
+                          SizedBox(
                             width: double.infinity,
-                            decoration: BoxDecoration(
-                              gradient: AppTokens.sunburstGradient,
-                              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                              boxShadow: AppTokens.sunGlowShadow,
-                            ),
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CookingModeView(
-                                      recipe: recipe.copyWith(servings: _currentServings),
-                                      ingredients: scaledIngredients,
-                                    ),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.soup_kitchen_rounded, size: 20),
+                              onPressed: () => _openCookingMode(recipe),
+                              icon: const Icon(Icons.soup_kitchen_outlined, size: 19),
                               label: const Text('Start Cooking Mode'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTokens.radiusPill)),
                               ),
                             ),
                           ),
@@ -603,110 +530,80 @@ class _MealPackViewState extends State<MealPackView> {
 
                   const SizedBox(height: AppTokens.spaceXl),
 
-                  // Instructions Section Header
+                  // Editorial Step-by-Step Method Sheet
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
                           'Step-by-Step Instructions',
-                          style: AppTokens.display(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
-                          ),
+                          style: AppTokens.display(fontSize: 20, color: textPrimary),
                         ),
                       ),
                       TextButton.icon(
-                        onPressed: () {
-                          final double scaleFactor = (recipe.servings > 0) ? (_currentServings / recipe.servings) : 1.0;
-                          final scaledIngredients = recipe.recipeSpecificIngredients.map((ing) {
-                            return ing.copyWith(quantity: ing.quantity * scaleFactor);
-                          }).toList();
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CookingModeView(
-                                recipe: recipe.copyWith(servings: _currentServings),
-                                ingredients: scaledIngredients,
-                              ),
-                            ),
-                          );
-                        },
-                        icon: Icon(
-                          Icons.timer_outlined,
-                          size: 16,
-                          color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
-                        ),
+                        onPressed: () => _openCookingMode(recipe),
+                        icon: Icon(Icons.timer_outlined, size: 15, color: sageInk),
                         label: Text(
                           'Cooking View',
-                          style: AppTokens.kicker(
-                            fontSize: 11,
-                            color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
+                          style: AppTokens.sansBody(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: sageInk,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppTokens.spaceMd),
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recipe.instructions.length,
-                    itemBuilder: (context, idx) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-                        child: Container(
-                          padding: const EdgeInsets.all(AppTokens.spaceMd),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight,
-                            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                            border: Border.all(
-                              color: isDark ? AppTokens.borderDark : AppTokens.borderLight,
-                              width: 1.0,
+                  const SizedBox(height: AppTokens.spaceSm),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: surface,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                      border: Border.all(color: border, width: 1.0),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTokens.spaceMd + 2,
+                      vertical: AppTokens.spaceSm,
+                    ),
+                    child: Column(
+                      children: [
+                        for (int idx = 0; idx < recipe.instructions.length; idx++) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceMd),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: 28,
+                                  child: Text(
+                                    (idx + 1).toString().padLeft(2, '0'),
+                                    style: AppTokens.serifItalic(
+                                      fontSize: 17,
+                                      color: sageInk,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: AppTokens.spaceSm + 4),
+                                Expanded(
+                                  child: Text(
+                                    recipe.instructions[idx],
+                                    style: AppTokens.sansBody(
+                                      fontSize: 14.5,
+                                      color: textPrimary,
+                                      height: 1.55,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            boxShadow: AppTokens.cardShadow,
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  (idx + 1).toString().padLeft(2, '0'),
-                                  style: AppTokens.numeral(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark ? AppTokens.primaryDark : AppTokens.primaryLight,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: AppTokens.spaceMd),
-                              Expanded(
-                                child: Text(
-                                  recipe.instructions[idx],
-                                  style: AppTokens.sansBody(
-                                    fontSize: 14.5,
-                                    color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                          if (idx < recipe.instructions.length - 1)
+                            Divider(height: 1, color: border),
+                        ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: AppTokens.spaceXxl),
-                ]
+                ],
               ],
             ),
           ),

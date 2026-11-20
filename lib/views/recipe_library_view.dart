@@ -19,24 +19,24 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
   String _searchQuery = '';
   String _selectedFilter = 'All';
 
-  final List<String> _filters = [
+  static const List<String> _filters = [
     'All',
-    '🇮🇹 Italian',
-    '🇲🇽 Latin American',
-    '🇮🇳 Indian',
-    '🇫🇷 French',
-    '🫒 Mediterranean',
-    '🇱🇧 Middle Eastern',
-    '🇰🇷 Korean',
-    '🥢 Pan-Asian',
-    '🇿🇦 South African',
-    '🇺🇸 Americas & Caribbean',
-    '🪙 Budget Saver',
-    '⚖️ Balanced',
-    '👑 Gourmet',
-    '🔥 Adventurous',
-    '⏱ Under 25m',
-    '🥗 Vegetarian',
+    'Italian',
+    'Latin American',
+    'Indian',
+    'French',
+    'Mediterranean',
+    'Middle Eastern',
+    'Korean',
+    'Pan-Asian',
+    'South African',
+    'Americas & Caribbean',
+    'Budget Saver',
+    'Balanced',
+    'Gourmet',
+    'Adventurous',
+    'Under 25m',
+    'Vegetarian',
   ];
 
   @override
@@ -49,7 +49,6 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
 
   List<Recipe> _getFilteredRecipes() {
     return CuratedRecipeLibrary.recipes.where((r) {
-      // 1. Search Query Filter
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
         final matchesTitle = r.title.toLowerCase().contains(q);
@@ -62,39 +61,38 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
         }
       }
 
-      // 2. Chip Filter
       switch (_selectedFilter) {
-        case '🇮🇹 Italian':
+        case 'Italian':
           return r.cuisine == 'Italian';
-        case '🇲🇽 Latin American':
+        case 'Latin American':
           return r.cuisine == 'Mexican' || r.cuisine == 'Latin American';
-        case '🇮🇳 Indian':
+        case 'Indian':
           return r.cuisine == 'Indian';
-        case '🇫🇷 French':
+        case 'French':
           return r.cuisine == 'French' || r.cuisine == 'European';
-        case '🫒 Mediterranean':
+        case 'Mediterranean':
           return r.cuisine == 'Mediterranean' || r.cuisine == 'Greek' || r.cuisine == 'Spanish';
-        case '🇱🇧 Middle Eastern':
+        case 'Middle Eastern':
           return r.cuisine == 'Middle Eastern' || r.cuisine == 'Moroccan' || r.cuisine == 'Egyptian' || r.cuisine == 'African';
-        case '🇰🇷 Korean':
+        case 'Korean':
           return r.cuisine == 'Korean';
-        case '🥢 Pan-Asian':
+        case 'Pan-Asian':
           return r.cuisine == 'Pan-Asian' || r.cuisine == 'Korean' || r.cuisine == 'Thai' || r.cuisine == 'Chinese' || r.cuisine == 'Japanese' || r.cuisine == 'Vietnamese';
-        case '🇿🇦 South African':
+        case 'South African':
           return r.cuisine == 'South African';
-        case '🇺🇸 Americas & Caribbean':
+        case 'Americas & Caribbean':
           return r.cuisine == 'American' || r.cuisine == 'Caribbean';
-        case '🪙 Budget Saver':
+        case 'Budget Saver':
           return r.budgetTier == 'Budget Saver';
-        case '⚖️ Balanced':
+        case 'Balanced':
           return r.budgetTier == 'Balanced' || r.budgetTier == 'Standard' || r.budgetTier == 'Everyday Value';
-        case '👑 Gourmet':
+        case 'Gourmet':
           return r.budgetTier == 'Gourmet';
-        case '🔥 Adventurous':
+        case 'Adventurous':
           return r.isAdventurous;
-        case '⏱ Under 25m':
+        case 'Under 25m':
           return r.cookTimeMinutes <= 25;
-        case '🥗 Vegetarian':
+        case 'Vegetarian':
           return _isVeg(r);
         case 'All':
         default:
@@ -107,28 +105,25 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
     final activePack = provider.activeMealPack;
     if (activePack == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No active meal pack. Generate a pack in Planner first.')),
+        const SnackBar(content: Text('No active meal pack. Curate a weekly menu in Planner first.')),
       );
       return;
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-    final textPrimary = isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight;
-    final textSecondary = isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight;
-    final borderColor = isDark ? AppTokens.borderDark : AppTokens.borderLight;
-    final modalBg = isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight;
+    final sageInk = AppTokens.sageInk(isDark);
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: modalBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
-      ),
       builder: (ctx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppTokens.spaceMd + 4),
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.spaceLg,
+              AppTokens.spaceMd,
+              AppTokens.spaceLg,
+              AppTokens.spaceLg,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,74 +133,51 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: borderColor,
+                      color: AppTokens.border(isDark),
                       borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                     ),
                   ),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
                 Text(
-                  'SWAP INTO ACTIVE PACK',
-                  style: AppTokens.kicker(
-                    fontSize: 11,
-                    letterSpacing: 1.2,
-                    color: primaryColor,
-                  ),
+                  'Swap Into This Week',
+                  style: AppTokens.display(fontSize: 20, color: AppTokens.textPrimary(isDark)),
                 ),
-                const SizedBox(height: AppTokens.spaceXs),
+                const SizedBox(height: 4),
                 Text(
-                  'Choose which dinner to replace with "${recipe.title}":',
-                  style: AppTokens.sansBody(
-                    fontSize: 13,
-                    color: textSecondary,
-                  ),
+                  'Choose a dinner to replace with "${recipe.title}":',
+                  style: AppTokens.sansBody(fontSize: 13, color: AppTokens.textSecondary(isDark)),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: activePack.recipes.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: borderColor),
+                    separatorBuilder: (_, __) => Divider(height: 1, color: AppTokens.border(isDark)),
                     itemBuilder: (c, idx) {
                       final currentR = activePack.recipes[idx];
                       return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppTokens.spaceXs,
-                          vertical: AppTokens.spaceXs,
-                        ),
-                        leading: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${idx + 1}',
-                            style: AppTokens.numeral(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: primaryColor,
-                            ),
-                          ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                        leading: Text(
+                          (idx + 1).toString().padLeft(2, '0'),
+                          style: AppTokens.serifItalic(fontSize: 17, color: sageInk),
                         ),
                         title: Text(
                           currentR.title,
                           style: AppTokens.display(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: AppTokens.textPrimary(isDark),
                           ),
                         ),
                         subtitle: Text(
-                          '${currentR.cookTimeMinutes} min • ${currentR.cuisine}',
+                          '${currentR.cookTimeMinutes} min  ·  ${currentR.cuisine}',
                           style: AppTokens.sansBody(
                             fontSize: 12,
-                            color: textSecondary,
+                            color: AppTokens.textSecondary(isDark),
                           ),
                         ),
-                        trailing: Icon(Icons.swap_horiz_rounded, color: primaryColor, size: 20),
+                        trailing: Icon(Icons.swap_horiz_rounded, color: sageInk, size: 20),
                         onTap: () async {
                           Navigator.pop(ctx);
                           if (currentR.id != null) {
@@ -232,60 +204,47 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-    final textPrimary = isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight;
-    final textSecondary = isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight;
-    final borderColor = isDark ? AppTokens.borderDark : AppTokens.borderLight;
-    final cardBg = isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight;
-    final mutedBg = isDark ? AppTokens.surfaceMutedDark : AppTokens.surfaceMutedLight;
+    final primary = AppTokens.primary(isDark);
+    final onPrimary = AppTokens.onPrimary(isDark);
+    final sageInk = AppTokens.sageInk(isDark);
+    final textPrimary = AppTokens.textPrimary(isDark);
+    final textSecondary = AppTokens.textSecondary(isDark);
+    final border = AppTokens.border(isDark);
+    final surface = AppTokens.surface(isDark);
+    final mutedBg = AppTokens.surfaceMuted(isDark);
     final filtered = _getFilteredRecipes();
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: AppTokens.spaceLg,
         title: Text(
-          'RECIPE ARCHIVE',
-          style: AppTokens.kicker(
-            fontSize: 13,
-            letterSpacing: 1.4,
-            fontWeight: FontWeight.w700,
-            color: textPrimary,
-          ),
+          'Recipe Library',
+          style: AppTokens.display(fontSize: 21, color: textPrimary),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-            ),
-            onPressed: () {
-              context.read<MealPackProvider>().toggleThemeMode(currentlyDark: isDark);
-            },
-            tooltip: 'Toggle Theme',
-          ),
-        ],
       ),
       body: Consumer<MealPackProvider>(
         builder: (context, provider, child) {
           return CustomScrollView(
             slivers: [
-              // Search Bar
+              // Calm Dove-Grey Search Field
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppTokens.spaceMd,
+                    AppTokens.spaceLg,
                     AppTokens.spaceSm,
-                    AppTokens.spaceMd,
+                    AppTokens.spaceLg,
                     AppTokens.spaceSm,
                   ),
                   child: TextField(
                     controller: _searchController,
-                    style: AppTokens.sansBody(fontSize: 13.5, color: textPrimary),
+                    style: AppTokens.sansBody(fontSize: 14, color: textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Search dishes, gochujang, chicken, garlic...',
-                      hintStyle: AppTokens.sansBody(fontSize: 13, color: textSecondary),
+                      hintStyle: AppTokens.sansBody(fontSize: 13.5, color: AppTokens.textMuted(isDark)),
                       prefixIcon: Icon(Icons.search_rounded, size: 20, color: textSecondary),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, size: 16, color: textSecondary),
+                              icon: Icon(Icons.clear, size: 17, color: textSecondary),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() => _searchQuery = '');
@@ -294,36 +253,34 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
                           : null,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppTokens.spaceMd,
-                        vertical: AppTokens.spaceSm + 2,
+                        vertical: 12,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                        borderSide: BorderSide(color: borderColor),
+                        borderSide: BorderSide(color: border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                        borderSide: BorderSide(color: borderColor),
+                        borderSide: BorderSide(color: border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                        borderSide: BorderSide(color: primaryColor, width: 1.5),
+                        borderSide: BorderSide(color: primary, width: 1.4),
                       ),
                       filled: true,
                       fillColor: mutedBg,
                     ),
-                    onChanged: (val) {
-                      setState(() => _searchQuery = val.trim());
-                    },
+                    onChanged: (val) => setState(() => _searchQuery = val.trim()),
                   ),
                 ),
               ),
 
-              // Filter Chips
+              // Zero-Emoji Filter Chips
               SliverToBoxAdapter(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.spaceMd,
+                    horizontal: AppTokens.spaceLg,
                     vertical: AppTokens.spaceXs,
                   ),
                   child: Row(
@@ -331,34 +288,29 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
                       final isSelected = _selectedFilter == filter;
                       return Padding(
                         padding: const EdgeInsets.only(right: AppTokens.spaceSm),
-                        child: FilterChip(
+                        child: ChoiceChip(
                           label: Text(
                             filter,
                             style: AppTokens.sansBody(
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: isSelected ? Colors.white : textPrimary,
+                              fontSize: 12.5,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                              color: isSelected ? onPrimary : textSecondary,
+                              height: 1.1,
                             ),
                           ),
                           selected: isSelected,
-                          selectedColor: primaryColor,
-                          checkmarkColor: Colors.white,
-                          backgroundColor: cardBg,
+                          selectedColor: primary,
+                          backgroundColor: surface,
+                          showCheckmark: false,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                             side: BorderSide(
-                              color: isSelected ? primaryColor : borderColor,
+                              color: isSelected ? primary : border,
                               width: 1.0,
                             ),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppTokens.spaceSm + 2,
-                            vertical: 3,
-                          ),
-                          showCheckmark: false,
-                          onSelected: (_) {
-                            setState(() => _selectedFilter = filter);
-                          },
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          onSelected: (_) => setState(() => _selectedFilter = filter),
                         ),
                       );
                     }).toList(),
@@ -366,35 +318,29 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
                 ),
               ),
 
-              // Header Count
+              // Dish Count Header
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceLg,
                     AppTokens.spaceMd,
-                    AppTokens.spaceMd,
-                    AppTokens.spaceMd,
-                    AppTokens.spaceXs,
+                    AppTokens.spaceLg,
+                    AppTokens.spaceSm,
                   ),
                   child: Text(
                     '${filtered.length} CURATED DISHES',
-                    style: AppTokens.kicker(
-                      fontSize: 11,
-                      letterSpacing: 1.2,
-                      fontWeight: FontWeight.w700,
-                      color: textSecondary,
-                    ),
+                    style: AppTokens.kicker(fontSize: 10, color: textSecondary),
                   ),
                 ),
               ),
 
-              // Recipe Cards Grid/List
               if (filtered.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(AppTokens.spaceXxl),
                     child: Center(
                       child: Text(
-                        'No dishes match your culinary filters.',
+                        'No dishes match your search.',
                         style: AppTokens.sansBody(fontSize: 14, color: textSecondary),
                       ),
                     ),
@@ -402,171 +348,93 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.spaceMd,
-                    vertical: AppTokens.spaceXs,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, idx) {
                         final recipe = filtered[idx];
                         final isSaved = provider.isRecipeSaved(recipe);
+                        final isGourmet = recipe.budgetTier == 'Gourmet';
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: AppTokens.spaceMd),
                           decoration: BoxDecoration(
-                            color: cardBg,
+                            color: surface,
                             borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                            border: Border.all(color: borderColor, width: 1.0),
-                            boxShadow: AppTokens.cardShadow,
+                            border: Border.all(color: border, width: 1.0),
+                            boxShadow: AppTokens.paperShadow(isDark),
                           ),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(AppTokens.radiusLg),
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => MealPackView(recipe: recipe),
-                                ),
+                                MaterialPageRoute(builder: (context) => MealPackView(recipe: recipe)),
                               );
                             },
                             child: Padding(
-                              padding: const EdgeInsets.all(AppTokens.spaceMd),
+                              padding: const EdgeInsets.all(AppTokens.spaceMd + 2),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Badges Row
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       Expanded(
                                         child: Wrap(
-                                          spacing: AppTokens.spaceXs + 2,
-                                          runSpacing: AppTokens.spaceXs + 2,
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
                                           children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: AppTokens.spaceSm,
-                                                vertical: AppTokens.spaceXs,
+                                            Text(
+                                              recipe.cuisine.toUpperCase(),
+                                              style: AppTokens.kicker(fontSize: 10, color: sageInk),
+                                            ),
+                                            Text('·', style: AppTokens.kicker(color: AppTokens.textMuted(isDark))),
+                                            Text(
+                                              '${recipe.cookTimeMinutes} min',
+                                              style: AppTokens.numeral(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color: textSecondary,
                                               ),
-                                              decoration: BoxDecoration(
-                                                color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
-                                                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                              ),
-                                              child: Text(
-                                                recipe.cuisine.toUpperCase(),
+                                            ),
+                                            if (recipe.isAdventurous) ...[
+                                              Text('·', style: AppTokens.kicker(color: AppTokens.textMuted(isDark))),
+                                              Text(
+                                                'ADVENTUROUS',
                                                 style: AppTokens.kicker(
-                                                  fontSize: 10,
-                                                  letterSpacing: 1.1,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: primaryColor,
+                                                  fontSize: 9.5,
+                                                  color: AppTokens.sandInk(isDark),
                                                 ),
                                               ),
-                                            ),
-                                            if (recipe.isAdventurous)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: AppTokens.spaceSm,
-                                                  vertical: AppTokens.spaceXs,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: AppTokens.accentSun.withValues(alpha: isDark ? 0.25 : 0.15),
-                                                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                                ),
-                                                child: Text(
-                                                  '🔥 ADVENTUROUS',
-                                                  style: AppTokens.kicker(
-                                                    fontSize: 10,
-                                                    letterSpacing: 1.1,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: isDark ? AppTokens.accentSunDark : AppTokens.accentSun,
-                                                  ),
-                                                ),
-                                              ),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: AppTokens.spaceSm,
-                                                vertical: AppTokens.spaceXs,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: mutedBg,
-                                                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(Icons.timer_outlined, size: 12, color: textSecondary),
-                                                  const SizedBox(width: AppTokens.spaceXs),
-                                                  Text(
-                                                    '${recipe.cookTimeMinutes} min',
-                                                    style: AppTokens.numeral(
-                                                      fontSize: 11,
-                                                      color: textSecondary,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: AppTokens.spaceSm,
-                                                vertical: AppTokens.spaceXs,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: recipe.budgetTier == 'Gourmet'
-                                                    ? AppTokens.accentSun.withValues(alpha: isDark ? 0.25 : 0.15)
-                                                    : recipe.budgetTier == 'Budget Saver'
-                                                        ? (isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight)
-                                                        : mutedBg,
-                                                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                              ),
-                                              child: Text(
-                                                recipe.budgetTier == 'Gourmet'
-                                                    ? '👑 ${recipe.budgetTier} (\$\$\$)'
-                                                    : recipe.budgetTier == 'Budget Saver'
-                                                        ? '🍋 ${recipe.budgetTier} (\$)'
-                                                        : '🥗 ${recipe.budgetTier} (\$\$)',
-                                                style: AppTokens.sansBody(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: recipe.budgetTier == 'Gourmet'
-                                                      ? (isDark ? AppTokens.accentSunDark : AppTokens.accentSun)
-                                                      : recipe.budgetTier == 'Budget Saver'
-                                                          ? primaryColor
-                                                          : textSecondary,
-                                                ),
-                                              ),
-                                            ),
+                                            ],
                                           ],
                                         ),
                                       ),
-                                      IconButton(
-                                        visualDensity: VisualDensity.compact,
-                                        icon: Icon(
-                                          isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
-                                          color: isSaved ? primaryColor : (isDark ? AppTokens.textMutedDark : AppTokens.textMutedLight),
-                                          size: 22,
+                                      InkResponse(
+                                        radius: 20,
+                                        onTap: () => provider.toggleSaveRecipe(recipe),
+                                        child: Icon(
+                                          isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                                          color: isSaved ? primary : AppTokens.textMuted(isDark),
+                                          size: 20,
                                         ),
-                                        onPressed: () {
-                                          provider.toggleSaveRecipe(recipe);
-                                        },
-                                        tooltip: 'Save Recipe',
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: AppTokens.spaceSm + 2),
-
-                                  // Recipe Title
+                                  const SizedBox(height: 8),
                                   Text(
                                     recipe.title,
                                     style: AppTokens.display(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
+                                      fontSize: 18.5,
+                                      fontWeight: FontWeight.w500,
                                       color: textPrimary,
+                                      height: 1.24,
                                     ),
                                   ),
                                   if (recipe.description.isNotEmpty) ...[
-                                    const SizedBox(height: AppTokens.spaceXs),
+                                    const SizedBox(height: 6),
                                     Text(
                                       recipe.description,
                                       maxLines: 2,
@@ -574,55 +442,56 @@ class _RecipeLibraryViewState extends State<RecipeLibraryView> {
                                       style: AppTokens.sansBody(
                                         fontSize: 13,
                                         color: textSecondary,
-                                        height: 1.4,
+                                        height: 1.45,
                                       ),
                                     ),
                                   ],
-
-                                  const SizedBox(height: AppTokens.spaceMd),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    alignment: WrapAlignment.spaceBetween,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 8,
+                                    runSpacing: 8,
                                     children: [
-                                      Text(
-                                        '${recipe.recipeSpecificIngredients.length} ingredients',
-                                        style: AppTokens.sansBody(
-                                          fontSize: 12,
-                                          color: textSecondary,
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isGourmet
+                                              ? AppTokens.sandTint(isDark)
+                                              : mutedBg,
+                                          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                                        ),
+                                        child: Text(
+                                          '${recipe.budgetTier} · ${recipe.recipeSpecificIngredients.length} items',
+                                          style: AppTokens.sansBody(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                            color: isGourmet
+                                                ? AppTokens.sandInk(isDark)
+                                                : textSecondary,
+                                            height: 1.1,
+                                          ),
                                         ),
                                       ),
                                       Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           OutlinedButton.icon(
                                             onPressed: () => _showAddToPackDialog(context, recipe, provider),
-                                            icon: const Icon(Icons.swap_horiz, size: 14),
-                                            label: Text(
-                                              'Swap to Pack',
-                                              style: AppTokens.sansBody(fontSize: 11, fontWeight: FontWeight.w600),
-                                            ),
+                                            icon: const Icon(Icons.swap_horiz_rounded, size: 14),
+                                            label: const Text('Swap to Pack'),
                                             style: OutlinedButton.styleFrom(
                                               visualDensity: VisualDensity.compact,
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: AppTokens.spaceSm + 2,
-                                                vertical: AppTokens.spaceXs,
-                                              ),
-                                              side: BorderSide(color: borderColor),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                                              foregroundColor: textSecondary,
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              textStyle: AppTokens.sansBody(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: AppTokens.spaceSm),
-                                          Text(
-                                            'VIEW',
-                                            style: AppTokens.kicker(
-                                              fontSize: 11,
-                                              letterSpacing: 1.1,
-                                              fontWeight: FontWeight.w700,
-                                              color: primaryColor,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 2),
-                                          Icon(Icons.arrow_forward_ios_rounded, size: 10, color: primaryColor),
+                                          const SizedBox(width: 8),
+                                          Icon(Icons.arrow_forward_rounded, size: 16, color: sageInk),
                                         ],
                                       ),
                                     ],

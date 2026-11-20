@@ -571,14 +571,15 @@ class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver
           Container(
             padding: const EdgeInsets.all(AppTokens.spaceSm + AppTokens.spaceXs),
             decoration: BoxDecoration(
-              color: isDark ? AppTokens.accentSunTintDark : AppTokens.accentSunTintLight,
+              color: AppTokens.sandTint(isDark),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+              border: Border.all(color: AppTokens.sandBorder(isDark)),
             ),
             child: Text(
               'The update file is still being prepared on GitHub. Please check again in a minute.',
-              style: TextStyle(
+              style: AppTokens.sansBody(
                 fontSize: 12.5,
-                color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
+                color: AppTokens.textPrimary(isDark),
               ),
             ),
           ),
@@ -589,19 +590,19 @@ class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver
           Container(
             padding: const EdgeInsets.all(AppTokens.spaceSm + AppTokens.spaceXs),
             decoration: BoxDecoration(
-              color: isDark ? AppTokens.accentSunTintDark : AppTokens.accentSunTintLight,
+              color: AppTokens.sandTint(isDark),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
               border: Border.all(
-                color: isDark ? AppTokens.accentSunDark : AppTokens.accentSun,
+                color: AppTokens.sandBorder(isDark),
                 width: 1.0,
               ),
             ),
             child: Text(
               'Enable "Install unknown apps" in Android Settings and return here — the update will start automatically.',
-              style: TextStyle(
+              style: AppTokens.sansBody(
                 fontSize: 12.5,
                 height: 1.4,
-                color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
+                color: AppTokens.textPrimary(isDark),
               ),
             ),
           ),
@@ -612,19 +613,19 @@ class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver
           Container(
             padding: const EdgeInsets.all(AppTokens.spaceSm + AppTokens.spaceXs),
             decoration: BoxDecoration(
-              color: isDark ? AppTokens.accentMintTintDark : AppTokens.accentMintTintLight,
+              color: AppTokens.primaryContainer(isDark),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
               border: Border.all(
-                color: isDark ? AppTokens.accentMintDark : AppTokens.accentMintLight,
+                color: AppTokens.primary(isDark).withValues(alpha: 0.4),
                 width: 1.0,
               ),
             ),
             child: Text(
               'Installer opened. Confirm "Update" in the Android prompt, or tap Install Again if you dismissed it.',
-              style: TextStyle(
+              style: AppTokens.sansBody(
                 fontSize: 12.5,
                 height: 1.4,
-                color: isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight,
+                color: AppTokens.textPrimary(isDark),
               ),
             ),
           ),

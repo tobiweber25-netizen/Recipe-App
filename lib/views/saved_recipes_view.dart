@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/recipe.dart';
 import '../state/meal_pack_provider.dart';
 import '../utils/app_tokens.dart';
+import '../utils/botanical_marks.dart';
 import 'cooking_mode_view.dart';
 import 'meal_pack_view.dart';
 
@@ -34,11 +35,11 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
     final dateStr = '${date.day} ${months[date.month - 1]} ${date.year}';
 
     if (diffDays == 0) {
-      return 'Saved Today • $dateStr';
+      return 'Saved Today · $dateStr';
     } else if (diffDays == 1) {
-      return 'Saved Yesterday • $dateStr';
+      return 'Saved Yesterday · $dateStr';
     } else if (diffDays > 1 && diffDays < 7) {
-      return 'Saved This Week • $dateStr';
+      return 'Saved This Week · $dateStr';
     } else {
       return 'Batch from $dateStr';
     }
@@ -63,35 +64,21 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppTokens.primaryDark : AppTokens.primaryLight;
-    final textPrimary = isDark ? AppTokens.textPrimaryDark : AppTokens.textPrimaryLight;
-    final textSecondary = isDark ? AppTokens.textSecondaryDark : AppTokens.textSecondaryLight;
-    final borderColor = isDark ? AppTokens.borderDark : AppTokens.borderLight;
-    final cardBg = isDark ? AppTokens.surfaceDark : AppTokens.surfaceLight;
-    final mutedBg = isDark ? AppTokens.surfaceMutedDark : AppTokens.surfaceMutedLight;
+    final primary = AppTokens.primary(isDark);
+    final sageInk = AppTokens.sageInk(isDark);
+    final textPrimary = AppTokens.textPrimary(isDark);
+    final textSecondary = AppTokens.textSecondary(isDark);
+    final border = AppTokens.border(isDark);
+    final surface = AppTokens.surface(isDark);
+    final mutedBg = AppTokens.surfaceMuted(isDark);
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: AppTokens.spaceLg,
         title: Text(
-          'SAVED RECIPES',
-          style: AppTokens.kicker(
-            fontSize: 13,
-            letterSpacing: 1.4,
-            fontWeight: FontWeight.w700,
-            color: textPrimary,
-          ),
+          'Saved Recipes',
+          style: AppTokens.display(fontSize: 21, color: textPrimary),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-            ),
-            onPressed: () {
-              context.read<MealPackProvider>().toggleThemeMode(currentlyDark: isDark);
-            },
-            tooltip: 'Toggle Theme',
-          ),
-        ],
       ),
       body: Consumer<MealPackProvider>(
         builder: (context, provider, child) {
@@ -105,34 +92,24 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                     Container(
                       width: 72,
                       height: 72,
-                      decoration: const BoxDecoration(
-                        gradient: AppTokens.sunburstGradient,
+                      decoration: BoxDecoration(
+                        color: AppTokens.surfaceWarm(isDark),
                         shape: BoxShape.circle,
-                        boxShadow: AppTokens.sunGlowShadow,
                       ),
-                      child: const Icon(
-                        Icons.bookmark_rounded,
-                        size: 32,
-                        color: Colors.white,
+                      child: Center(
+                        child: BotanicalSprig(size: 40, color: primary),
                       ),
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
                     Text(
                       'No Saved Recipes Yet',
-                      style: AppTokens.display(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: textPrimary,
-                      ),
+                      style: AppTokens.display(fontSize: 22, color: textPrimary),
                     ),
                     const SizedBox(height: AppTokens.spaceSm),
                     Text(
-                      'Bookmark dishes from your weekly dinner packs to curate your personal cookbook of tried-and-tested favorites.',
+                      'Bookmark dishes from your weekly menu or library to keep your personal cookbook here.',
                       textAlign: TextAlign.center,
-                      style: AppTokens.sansBody(
-                        fontSize: 13,
-                        color: textSecondary,
-                      ),
+                      style: AppTokens.sansBody(fontSize: 13.5, color: textSecondary),
                     ),
                   ],
                 ),
@@ -155,13 +132,12 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
 
           return CustomScrollView(
             slivers: [
-              // Search & Count Bar
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppTokens.spaceMd,
+                    AppTokens.spaceLg,
                     AppTokens.spaceSm,
-                    AppTokens.spaceMd,
+                    AppTokens.spaceLg,
                     AppTokens.spaceSm,
                   ),
                   child: Column(
@@ -169,17 +145,18 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                     children: [
                       TextField(
                         controller: _searchController,
-                        onChanged: (val) {
-                          setState(() => _searchQuery = val.trim());
-                        },
-                        style: AppTokens.sansBody(fontSize: 13.5, color: textPrimary),
+                        onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                        style: AppTokens.sansBody(fontSize: 14, color: textPrimary),
                         decoration: InputDecoration(
-                          hintText: 'Search saved recipes by title, ingredients...',
-                          hintStyle: AppTokens.sansBody(fontSize: 13, color: textSecondary),
+                          hintText: 'Search saved recipes by title or ingredient...',
+                          hintStyle: AppTokens.sansBody(
+                            fontSize: 13.5,
+                            color: AppTokens.textMuted(isDark),
+                          ),
                           prefixIcon: Icon(Icons.search_rounded, size: 20, color: textSecondary),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.clear, size: 16, color: textSecondary),
+                                  icon: Icon(Icons.clear, size: 17, color: textSecondary),
                                   onPressed: () {
                                     _searchController.clear();
                                     setState(() => _searchQuery = '');
@@ -188,36 +165,28 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                               : null,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: AppTokens.spaceMd,
-                            vertical: AppTokens.spaceSm + 2,
+                            vertical: 12,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                            borderSide: BorderSide(color: borderColor),
+                            borderSide: BorderSide(color: border),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                            borderSide: BorderSide(color: borderColor),
+                            borderSide: BorderSide(color: border),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                            borderSide: BorderSide(color: primaryColor, width: 1.5),
+                            borderSide: BorderSide(color: primary, width: 1.4),
                           ),
                           filled: true,
                           fillColor: mutedBg,
                         ),
                       ),
-                      const SizedBox(height: AppTokens.spaceSm + 2),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceXs),
-                        child: Text(
-                          '${filtered.length} SAVED DISHES ACROSS ${grouped.keys.length} SESSION${grouped.keys.length == 1 ? '' : 'S'}',
-                          style: AppTokens.kicker(
-                            fontSize: 10.5,
-                            letterSpacing: 1.2,
-                            fontWeight: FontWeight.w700,
-                            color: textSecondary,
-                          ),
-                        ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      Text(
+                        '${filtered.length} SAVED DISH${filtered.length == 1 ? '' : 'ES'}',
+                        style: AppTokens.kicker(fontSize: 10, color: textSecondary),
                       ),
                     ],
                   ),
@@ -232,7 +201,7 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                       padding: const EdgeInsets.all(AppTokens.spaceXxl),
                       child: Text(
                         'No dishes matching "$_searchQuery"',
-                        style: AppTokens.sansBody(fontSize: 13, color: textSecondary),
+                        style: AppTokens.sansBody(fontSize: 13.5, color: textSecondary),
                       ),
                     ),
                   ),
@@ -244,79 +213,49 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
 
                   return SliverMainAxisGroup(
                     slivers: [
-                      // Date Group Header
+                      // Editorial Hairline Group Header
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(
+                            AppTokens.spaceLg,
                             AppTokens.spaceMd,
-                            AppTokens.spaceMd,
-                            AppTokens.spaceMd,
+                            AppTokens.spaceLg,
                             AppTokens.spaceSm,
                           ),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppTokens.spaceSm + 4,
-                              vertical: AppTokens.spaceSm,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cardBg,
-                              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                              border: Border.all(color: borderColor, width: 1.0),
-                              boxShadow: AppTokens.cardShadow,
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(AppTokens.spaceXs),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.calendar_today_rounded,
-                                    size: 13,
-                                    color: primaryColor,
-                                  ),
-                                ),
-                                const SizedBox(width: AppTokens.spaceSm + 2),
-                                Expanded(
-                                  child: Text(
-                                    groupTitle,
-                                    style: AppTokens.kicker(
-                                      fontSize: 11,
-                                      letterSpacing: 1.2,
-                                      fontWeight: FontWeight.w700,
-                                      color: textPrimary,
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      groupTitle,
+                                      style: AppTokens.kicker(
+                                        fontSize: 10.5,
+                                        color: sageInk,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppTokens.spaceSm + 2,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: mutedBg,
-                                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                  ),
-                                  child: Text(
+                                  Text(
                                     '${recipes.length} dish${recipes.length == 1 ? '' : 'es'}',
                                     style: AppTokens.numeral(
-                                      fontSize: 10.5,
-                                      color: primaryColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppTokens.textMuted(isDark),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Divider(height: 1, color: border),
+                            ],
                           ),
                         ),
                       ),
 
-                      // Group Recipe Cards
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+                        padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
@@ -324,12 +263,12 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                               final timeStr = _formatItemTime(recipe.savedAt);
 
                               return Container(
-                                margin: const EdgeInsets.only(bottom: AppTokens.spaceSm + 4),
+                                margin: const EdgeInsets.only(bottom: AppTokens.spaceMd),
                                 decoration: BoxDecoration(
-                                  color: cardBg,
+                                  color: surface,
                                   borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                                  border: Border.all(color: borderColor, width: 1.0),
-                                  boxShadow: AppTokens.cardShadow,
+                                  border: Border.all(color: border, width: 1.0),
+                                  boxShadow: AppTokens.paperShadow(isDark),
                                 ),
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(AppTokens.radiusLg),
@@ -340,106 +279,62 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                                     );
                                   },
                                   child: Padding(
-                                    padding: const EdgeInsets.all(AppTokens.spaceMd),
+                                    padding: const EdgeInsets.all(AppTokens.spaceMd + 2),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Expanded(
                                               child: Wrap(
-                                                spacing: AppTokens.spaceXs + 2,
-                                                runSpacing: AppTokens.spaceXs + 2,
+                                                spacing: 6,
+                                                runSpacing: 4,
+                                                crossAxisAlignment: WrapCrossAlignment.center,
                                                 children: [
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: AppTokens.spaceSm,
-                                                      vertical: AppTokens.spaceXs,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: isDark ? AppTokens.primaryContainerDark : AppTokens.primaryContainerLight,
-                                                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                                    ),
-                                                    child: Text(
-                                                      (recipe.category.isNotEmpty ? recipe.category : 'Main Dinner').toUpperCase(),
-                                                      style: AppTokens.kicker(
-                                                        fontSize: 10,
-                                                        letterSpacing: 1.1,
-                                                        fontWeight: FontWeight.w700,
-                                                        color: primaryColor,
-                                                      ),
+                                                  Text(
+                                                    (recipe.category.isNotEmpty ? recipe.category : 'Main Dinner').toUpperCase(),
+                                                    style: AppTokens.kicker(fontSize: 10, color: sageInk),
+                                                  ),
+                                                  Text('·', style: AppTokens.kicker(color: AppTokens.textMuted(isDark))),
+                                                  Text(
+                                                    '${recipe.cookTimeMinutes} min',
+                                                    style: AppTokens.numeral(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: textSecondary,
                                                     ),
                                                   ),
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: AppTokens.spaceSm,
-                                                      vertical: AppTokens.spaceXs,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: mutedBg,
-                                                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize: MainAxisSize.min,
-                                                      children: [
-                                                        Icon(Icons.timer_outlined, size: 12, color: textSecondary),
-                                                        const SizedBox(width: AppTokens.spaceXs),
-                                                        Text(
-                                                          '${recipe.cookTimeMinutes} min',
-                                                          style: AppTokens.numeral(
-                                                            fontSize: 11,
-                                                            color: textSecondary,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: AppTokens.spaceSm,
-                                                      vertical: AppTokens.spaceXs,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: mutedBg,
-                                                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                                    ),
-                                                    child: Text(
-                                                      recipe.budgetTier,
-                                                      style: AppTokens.sansBody(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.w500,
-                                                        color: textSecondary,
-                                                      ),
+                                                  Text('·', style: AppTokens.kicker(color: AppTokens.textMuted(isDark))),
+                                                  Text(
+                                                    recipe.budgetTier,
+                                                    style: AppTokens.sansBody(
+                                                      fontSize: 11,
+                                                      color: textSecondary,
+                                                      height: 1.1,
                                                     ),
                                                   ),
                                                 ],
                                               ),
                                             ),
-                                            const SizedBox(width: AppTokens.spaceSm),
-                                            IconButton(
-                                              visualDensity: VisualDensity.compact,
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                              icon: Icon(Icons.bookmark_rounded, color: primaryColor, size: 22),
-                                              onPressed: () {
-                                                provider.toggleSaveRecipe(recipe);
-                                              },
-                                              tooltip: 'Unsave Recipe',
+                                            InkResponse(
+                                              radius: 20,
+                                              onTap: () => provider.toggleSaveRecipe(recipe),
+                                              child: Icon(Icons.bookmark_rounded, color: primary, size: 20),
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: AppTokens.spaceSm + 2),
+                                        const SizedBox(height: 8),
                                         Text(
                                           recipe.title,
                                           style: AppTokens.display(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
+                                            fontSize: 18.5,
+                                            fontWeight: FontWeight.w500,
                                             color: textPrimary,
+                                            height: 1.24,
                                           ),
                                         ),
                                         if (recipe.description.isNotEmpty) ...[
-                                          const SizedBox(height: AppTokens.spaceXs),
+                                          const SizedBox(height: 6),
                                           Text(
                                             recipe.description,
                                             maxLines: 2,
@@ -447,11 +342,11 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                                             style: AppTokens.sansBody(
                                               fontSize: 13,
                                               color: textSecondary,
-                                              height: 1.4,
+                                              height: 1.45,
                                             ),
                                           ),
                                         ],
-                                        const SizedBox(height: AppTokens.spaceMd),
+                                        const SizedBox(height: 12),
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -459,8 +354,8 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                                               Text(
                                                 'Saved at $timeStr',
                                                 style: AppTokens.sansBody(
-                                                  fontSize: 11,
-                                                  color: textSecondary.withValues(alpha: 0.6),
+                                                  fontSize: 11.5,
+                                                  color: AppTokens.textMuted(isDark),
                                                 ),
                                               )
                                             else
@@ -477,21 +372,27 @@ class _SavedRecipesViewState extends State<SavedRecipesView> {
                                                   ),
                                                 );
                                               },
-                                              icon: const Icon(Icons.soup_kitchen_rounded, size: 15),
+                                              icon: Icon(
+                                                Icons.soup_kitchen_outlined,
+                                                size: 15,
+                                                color: sageInk,
+                                              ),
                                               label: Text(
                                                 'Cook Now',
-                                                style: AppTokens.sansBody(fontSize: 11.5, fontWeight: FontWeight.w700),
+                                                style: AppTokens.sansBody(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: sageInk,
+                                                ),
                                               ),
                                               style: OutlinedButton.styleFrom(
+                                                backgroundColor: AppTokens.primaryContainer(isDark),
+                                                side: BorderSide(color: primary.withValues(alpha: 0.35)),
                                                 padding: const EdgeInsets.symmetric(
-                                                  horizontal: AppTokens.spaceSm + 6,
-                                                  vertical: AppTokens.spaceXs + 2,
+                                                  horizontal: 13,
+                                                  vertical: 7,
                                                 ),
                                                 visualDensity: VisualDensity.compact,
-                                                side: BorderSide(color: borderColor, width: 1.0),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                                ),
                                               ),
                                             ),
                                           ],

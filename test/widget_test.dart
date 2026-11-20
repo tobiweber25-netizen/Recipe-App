@@ -102,7 +102,7 @@ void main() {
   });
 
   group('Widget Tests', () {
-    testWidgets('DashboardView renders with Meal & Budget Preferences and Generate button', (WidgetTester tester) async {
+    testWidgets('DashboardView renders collapsed preferences by default and expands to budget tiers', (WidgetTester tester) async {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -115,8 +115,15 @@ void main() {
       );
 
       expect(find.byType(DashboardView), findsOneWidget);
-      expect(find.text('⚡ INSTANT GENERATE (6 MEALS)'), findsOneWidget);
+      expect(find.text('Curate 6 Dinners'), findsOneWidget);
       expect(find.text('Meal & Budget Preferences'), findsOneWidget);
+      // Collapsed by default so the weekly menu sits front and center
+      expect(find.text('Budget Saver'), findsNothing);
+
+      // Expanding preferences reveals budget window options cleanly
+      await tester.tap(find.text('Meal & Budget Preferences'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Budget Saver'), findsOneWidget);
       expect(find.text('Balanced'), findsOneWidget);
       expect(find.text('Gourmet'), findsOneWidget);
@@ -172,12 +179,12 @@ void main() {
       );
 
       expect(find.text('Creamy Tuscan Garlic Chicken Pasta'), findsOneWidget);
-      expect(find.text("Chef's Golden Tip"), findsOneWidget);
+      expect(find.text("CHEF'S NOTE"), findsOneWidget);
       expect(find.text(testRecipe.chefTip), findsOneWidget);
       expect(find.text('Pasta Dinner'), findsOneWidget);
       expect(find.text('20 mins'), findsOneWidget);
       expect(find.text('Everyday Value'), findsOneWidget);
-      expect(find.text('Chicken Breast '), findsOneWidget);
+      expect(find.text('Chicken Breast'), findsOneWidget);
       expect(find.text('Start Cooking Mode'), findsOneWidget);
       expect(find.text('Step-by-Step Instructions'), findsOneWidget);
       expect(find.text('Boil penne in salted water until al dente.'), findsOneWidget);
@@ -231,7 +238,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('SAVED RECIPES'), findsOneWidget);
+      expect(find.text('Saved Recipes'), findsOneWidget);
       expect(find.text('Crispy Lemon Thyme Chicken Thighs'), findsOneWidget);
       expect(find.textContaining('Saved Today'), findsOneWidget);
       expect(find.text('Cook Now'), findsOneWidget);
@@ -433,6 +440,10 @@ void main() {
   });
 
   group('MealPackGenerator Unit Tests', () {
+    setUp(() {
+      MealPackGenerator.instance.clearRecentHistory();
+    });
+
     test('generates 3 consecutive meal packs with zero repeat recipes and high cuisine diversity', () {
       MealPackGenerator.instance.clearRecentHistory();
       final titlesSeen = <String>{};

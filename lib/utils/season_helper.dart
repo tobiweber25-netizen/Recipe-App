@@ -40,25 +40,25 @@ class SeasonHelper {
       seasonName = "South African Winter";
       produce = ["root vegetables", "brassicas", "squashes", "citrus fruits", "avocados", "spinach", "kale", "cabbage", "cauliflower"];
       baseDesc = "Focus on rich, warming winter dishes using locally sourced produce.";
-      colors = [const Color(0xFF1B365D), const Color(0xFFE07A5F)];
+      colors = [const Color(0xFF425446), const Color(0xFF6B665E)];
     } else if (month == 9 || month == 10 || month == 11) {
       // Spring
       seasonName = "South African Spring";
       produce = ["asparagus", "artichokes", "green peas", "baby potatoes", "strawberries", "spring onions", "pineapples", "spinach", "apricots"];
       baseDesc = "Emphasize light, fresh spring recipes featuring crisp, new-season produce.";
-      colors = [const Color(0xFF70E000), const Color(0xFF38B000)];
+      colors = [const Color(0xFF5D7261), const Color(0xFF8FA893)];
     } else if (month == 12 || month == 1 || month == 2) {
       // Summer
       seasonName = "South African Summer";
       produce = ["tomatoes", "sweetcorn", "cucumbers", "bell peppers", "zucchini", "peaches", "mangoes", "watermelon", "eggplants"];
       baseDesc = "Emphasize colorful, refreshing summer recipes utilizing juicy, hydration-filled produce.";
-      colors = [const Color(0xFFF77F00), const Color(0xFFD62828)];
+      colors = [const Color(0xFF5C5243), const Color(0xFF9C968D)];
     } else {
       // Autumn
       seasonName = "South African Autumn";
       produce = ["apples", "pears", "figs", "pomegranates", "sweet potatoes", "eggplants", "wild mushrooms", "leeks", "butternut"];
       baseDesc = "Bias towards comforting autumn produce featuring earthy, sweet seasonal harvests.";
-      colors = [const Color(0xFFB07D62), const Color(0xFF9C6644)];
+      colors = [const Color(0xFF5C5243), const Color(0xFF5D7261)];
     }
 
     // Shuffle and pick 4-5 items for variety
