@@ -316,7 +316,7 @@ class _DashboardViewState extends State<DashboardView> {
                   const SizedBox(height: 3),
                   Text(
                     items.isEmpty
-                        ? 'Tap to add staples like kimchi, miso, or spinach'
+                        ? 'Add staples like kimchi, miso, or rice'
                         : items.map(_titleCase).join('  ·  '),
                     style: items.isEmpty
                         ? AppTokens.sansBody(fontSize: 12.5, color: textSecondary)
